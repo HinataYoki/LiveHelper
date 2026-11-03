@@ -1,0 +1,1133 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:arc="https://github.com/AIDotNet/TKCode.Arc"
+        xmlns:lucide="https://github.com/AIDotNet/TKCode.Arc/lucide"
+        xmlns:vm="clr-namespace:LiveHelper.Desktop.ViewModels"
+        x:Class="LiveHelper.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        x:CompileBindings="True"
+        Title="LiveHelper - 多平台直播监控录制"
+        Width="1380"
+        Height="880"
+        MinWidth="1080"
+        MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="BorderOnly"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Icon="/Assets/livehelper.ico"
+        Background="#F3EFE5"
+        FontFamily="Microsoft YaHei UI, PingFang SC, Noto Sans CJK SC">
+  <Window.Resources>
+    <SolidColorBrush x:Key="InkBrush" Color="#101514" />
+    <SolidColorBrush x:Key="PaperBrush" Color="#FFFCF6" />
+    <SolidColorBrush x:Key="CanvasBrush" Color="#F3EFE5" />
+    <SolidColorBrush x:Key="LineBrush" Color="#DED8CB" />
+    <SolidColorBrush x:Key="MutedBrush" Color="#77766E" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#F06435" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#1C8B63" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#D94A3A" />
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="FontFamily" Value="Geist Mono, Consolas" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="1.6" />
+      <Setter Property="Foreground" Value="#8A857A" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Geist Mono, Consolas" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="#77766E" />
+    </Style>
+    <Style Selector="TextBlock.cardTitle">
+      <Setter Property="FontFamily" Value="Geist, Microsoft YaHei UI" />
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#171B19" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#FFFCF6" />
+      <Setter Property="BorderBrush" Value="#DED8CB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="BoxShadow" Value="0 10 28 0 #0D171B19" />
+    </Style>
+    <Style Selector="Border.softCard">
+      <Setter Property="Background" Value="#F8F4EA" />
+      <Setter Property="BorderBrush" Value="#E5DED0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="15" />
+    </Style>
+    <Style Selector="Border.divider">
+      <Setter Property="Height" Value="1" />
+      <Setter Property="Background" Value="#EDE7DB" />
+    </Style>
+    <Style Selector="Button.nav">
+      <Setter Property="Height" Value="52" />
+      <Setter Property="Padding" Value="13,10" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="#AEB8B3" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.nav:pointerover">
+      <Setter Property="Background" Value="#1E2724" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.nav.active">
+      <Setter Property="Background" Value="#F06435" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.nav.active:pointerover">
+      <Setter Property="Background" Value="#E75B2D" />
+    </Style>
+    <Style Selector="Button.quick">
+      <Setter Property="Background" Value="#F2EDE2" />
+      <Setter Property="BorderBrush" Value="#E0D9CB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="10,7" />
+      <Setter Property="Foreground" Value="#3B3E3B" />
+    </Style>
+    <Style Selector="Button.quick:pointerover">
+      <Setter Property="Background" Value="#E9E2D5" />
+    </Style>
+    <Style Selector="Button.chrome">
+      <Setter Property="Width" Value="46" />
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="#84918B" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover">
+      <Setter Property="Background" Value="#1D2724" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.chrome:pressed">
+      <Setter Property="Background" Value="#26332F" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.chrome.close:pointerover">
+      <Setter Property="Background" Value="#D94A3A" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.chrome.close:pressed">
+      <Setter Property="Background" Value="#B93E31" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="arc|Button.iconAction">
+      <Setter Property="MinWidth" Value="34" />
+      <Setter Property="Padding" Value="9" />
+    </Style>
+    <Style Selector="arc|Input">
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="arc|Switch">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#3D3F3B" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="40,*">
+    <Border Grid.Row="0"
+            Background="#0C1110"
+            BorderBrush="#25312D"
+            BorderThickness="0,0,0,1"
+            PointerPressed="OnTitleBarPointerPressed">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="14,0,0,0" VerticalAlignment="Center">
+          <Border Width="26"
+                  Height="26"
+                  CornerRadius="8"
+                  Background="#F06435"
+                  RenderTransform="rotate(4deg)">
+            <TextBlock Text="L"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontFamily="Geist, Microsoft YaHei UI"
+                       FontSize="14"
+                       FontWeight="Bold"
+                       Foreground="#FFFFFF" />
+          </Border>
+          <TextBlock Text="LIVE HELPER"
+                     VerticalAlignment="Center"
+                     FontFamily="Geist, Microsoft YaHei UI"
+                     FontSize="12"
+                     FontWeight="Bold"
+                     LetterSpacing="0.8"
+                     Foreground="#FFFFFF" />
+          <Border Width="1" Height="16" Background="#2B3833" VerticalAlignment="Center" />
+          <TextBlock Text="多平台直播监控录制"
+                     VerticalAlignment="Center"
+                     FontSize="10"
+                     Foreground="#7F8D87" />
+        </StackPanel>
+
+        <Border Grid.Column="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="10,5"
+                CornerRadius="10"
+                Background="#131B19"
+                BorderBrush="#26322E"
+                BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Border Width="7" Height="7" CornerRadius="4" Background="{Binding MonitoringBrush}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GlobalStatusText}" FontSize="10" Foreground="#D8E0DC" VerticalAlignment="Center" />
+          </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Classes="chrome" Click="OnMinimizeClick">
+            <lucide:LucideIcon Kind="Minus" Size="14" />
+          </Button>
+          <Button Classes="chrome" Click="OnMaximizeClick">
+            <lucide:LucideIcon x:Name="MaximizeIcon" Kind="Maximize2" Size="13" />
+          </Button>
+          <Button Classes="chrome close" Click="OnCloseClick">
+            <lucide:LucideIcon Kind="X" Size="14" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="250,*">
+      <Border Grid.Column="0">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#111716" Offset="0" />
+            <GradientStop Color="#0B100F" Offset="0.62" />
+            <GradientStop Color="#18231F" Offset="1" />
+          </LinearGradientBrush>
+        </Border.Background>
+        <Grid Margin="18,14,18,18" RowDefinitions="Auto,*,Auto">
+          <StackPanel Grid.Row="0" Spacing="5">
+              <TextBlock Text="工作台"
+                         Margin="12,0,0,5"
+                         FontSize="10"
+                         FontWeight="SemiBold"
+                         LetterSpacing="1.2"
+                         Foreground="#66736E" />
+              <Button Classes="nav" Classes.active="{Binding IsOverviewPage}"
+                      Command="{Binding NavigateCommand}" CommandParameter="overview">
+                <Grid ColumnDefinitions="32,*,Auto">
+                  <TextBlock Text="01" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.55" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="巡检总览" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="↗" FontFamily="Geist Mono, Consolas" FontSize="12" Opacity="0.45" />
+                </Grid>
+              </Button>
+              <Button Classes="nav" Classes.active="{Binding IsRoomsPage}"
+                      Command="{Binding NavigateCommand}" CommandParameter="rooms">
+                <Grid ColumnDefinitions="32,*,Auto">
+                  <TextBlock Text="02" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.55" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="直播间矩阵" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding RoomCountText}" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.5" />
+                </Grid>
+              </Button>
+              <Button Classes="nav" Classes.active="{Binding IsRecordingsPage}"
+                      Command="{Binding NavigateCommand}" CommandParameter="recordings">
+                <Grid ColumnDefinitions="32,*,Auto">
+                  <TextBlock Text="03" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.55" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="录制档案" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding RecordingHistoryCountText}" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.5" />
+                </Grid>
+              </Button>
+              <Button Classes="nav" Classes.active="{Binding IsSettingsPage}"
+                      Command="{Binding NavigateCommand}" CommandParameter="settings">
+                <Grid ColumnDefinitions="32,*,Auto">
+                  <TextBlock Text="04" FontFamily="Geist Mono, Consolas" FontSize="10" Opacity="0.55" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="系统设置" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="⚙" FontSize="12" Opacity="0.45" />
+                </Grid>
+              </Button>
+          </StackPanel>
+
+          <StackPanel Grid.Row="2" Spacing="10">
+            <Border Padding="13" CornerRadius="14" Background="#151D1A" BorderBrush="#27332F" BorderThickness="1">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="录制会话" FontSize="10" FontWeight="SemiBold" Foreground="#84918B" />
+                  <TextBlock Grid.Column="1" Text="{Binding SessionDurationText}"
+                             FontFamily="Geist Mono, Consolas" FontSize="18"
+                             FontWeight="SemiBold" Foreground="#FFF7EC" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding MonitoringButtonText}" FontSize="10" Foreground="#98A49F" />
+                  <TextBlock Grid.Column="1" Text="{Binding LastScanText}" FontSize="9" Foreground="#66736E" />
+                </Grid>
+                <arc:Button Variant="Ghost" Command="{Binding ToggleMonitoringCommand}"
+                            HorizontalAlignment="Stretch" Content="{Binding MonitoringButtonText}" />
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+              <Border Padding="10,8" CornerRadius="10" Background="#141B19">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="YT-DLP" FontFamily="Geist Mono, Consolas" FontSize="9" Foreground="#6E7B76" />
+                  <TextBlock Text="{Binding YtDlpStateText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding YtDlpBrush}" />
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Padding="10,8" CornerRadius="10" Background="#141B19">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="FFMPEG" FontFamily="Geist Mono, Consolas" FontSize="9" Foreground="#6E7B76" />
+                  <TextBlock Text="{Binding FfmpegStateText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding FfmpegBrush}" />
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="Arc UI · 0.3.2" FontFamily="Geist Mono, Consolas" FontSize="9" Foreground="#56625D" />
+              <TextBlock Grid.Column="1" Text="v0.1.0" FontFamily="Geist Mono, Consolas" FontSize="9" Foreground="#56625D" />
+            </Grid>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,*">
+        <Border Grid.Row="0"
+                Padding="34,24,34,20"
+                Background="#F7F2E8"
+                BorderBrush="#DED8CB"
+                BorderThickness="0,0,0,1">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="5">
+              <TextBlock Text="{Binding PageEyebrow}" Classes="eyebrow" />
+              <TextBlock Text="{Binding PageTitle}"
+                         FontFamily="Geist, Microsoft YaHei UI"
+                         FontSize="31"
+                         FontWeight="Bold"
+                         LetterSpacing="-0.8"
+                         Foreground="#131715" />
+              <TextBlock Text="{Binding PageDescription}" FontSize="12" Foreground="#77766E" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Border Padding="11,7" CornerRadius="11" Background="#EEE8DC" BorderBrush="#DED7C9" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Border Width="8" Height="8" CornerRadius="4" Background="{Binding MonitoringBrush}" VerticalAlignment="Center" />
+                  <StackPanel Spacing="0">
+                    <TextBlock Text="{Binding NextScanText}" FontFamily="Geist Mono, Consolas"
+                               FontSize="15" FontWeight="SemiBold" Foreground="#343733" />
+                    <TextBlock Text="下一轮巡检" FontSize="8" Foreground="#858077" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Width="74" Padding="10,6" CornerRadius="12" Background="#101514">
+                <StackPanel Spacing="0" HorizontalAlignment="Center">
+                  <TextBlock Text="{Binding ClockText}"
+                             HorizontalAlignment="Center"
+                             FontFamily="Geist Mono, Consolas"
+                             FontSize="19"
+                             FontWeight="SemiBold"
+                             Foreground="#FFF8EE" />
+                  <TextBlock Text="LOCAL"
+                             HorizontalAlignment="Center"
+                             FontFamily="Geist Mono, Consolas"
+                             FontSize="7"
+                             LetterSpacing="1"
+                             Foreground="#66756F" />
+                </StackPanel>
+              </Border>
+
+              <arc:Button Variant="Secondary"
+                          Command="{Binding ScanNowCommand}"
+                          IsLoading="{Binding IsScanning}">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <lucide:LucideIcon Kind="ScanLine" Size="15" />
+                  <TextBlock Text="{Binding ScanButtonText}" FontSize="12" FontWeight="SemiBold" />
+                </StackPanel>
+              </arc:Button>
+
+              <arc:Button Variant="Primary" Command="{Binding AddRoomCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <lucide:LucideIcon Kind="Plus" Size="15" />
+                  <TextBlock Text="添加直播间" FontSize="12" FontWeight="SemiBold" />
+                </StackPanel>
+              </arc:Button>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <Grid Margin="34,26,34,38">
+            <!-- Overview -->
+            <StackPanel Spacing="18" IsVisible="{Binding IsOverviewPage}">
+              <arc:Alert IsOpen="{Binding HasMissingTools}"
+                         Tone="Warning"
+                         Title="录制工具尚未就绪"
+                         Content="{Binding MissingToolsText}" />
+
+              <Grid ColumnDefinitions="*,*,*,*">
+                <Border Grid.Column="0" Margin="0,0,12,0" Padding="20,18" CornerRadius="18" Background="#111716">
+                  <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="监控房间" FontSize="11" Foreground="#8E9A95" />
+                      <lucide:LucideIcon Grid.Column="1" Kind="RadioTower" Size="17" Foreground="#F06435" />
+                    </Grid>
+                    <TextBlock Text="{Binding RoomCountText}"
+                               FontFamily="Geist Mono, Consolas"
+                               FontSize="34"
+                               FontWeight="Bold"
+                               Foreground="#FFFFFF" />
+                    <TextBlock FontSize="10" Foreground="#69756F">
+                      <Run Text="{Binding MonitoredRoomText}" />
+                      <Run Text=" 已启用监控" />
+                    </TextBlock>
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Classes="card" Margin="0,0,12,0" Padding="20,18">
+                  <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="正在直播" FontSize="11" Foreground="#77766E" />
+                      <lucide:LucideIcon Grid.Column="1" Kind="Cctv" Size="17" Foreground="#1C8B63" />
+                    </Grid>
+                    <TextBlock Text="{Binding LiveRoomCountText}"
+                               FontFamily="Geist Mono, Consolas"
+                               FontSize="34"
+                               FontWeight="Bold"
+                               Foreground="#171B19" />
+                    <TextBlock Text="实时状态由巡检更新" FontSize="10" Foreground="#8B887E" />
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="card" Margin="0,0,12,0" Padding="20,18">
+                  <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="正在录制" FontSize="11" Foreground="#77766E" />
+                      <lucide:LucideIcon Grid.Column="1" Kind="MonitorPlay" Size="17" Foreground="#D94A3A" />
+                    </Grid>
+                    <TextBlock Text="{Binding RecordingRoomCountText}"
+                               FontFamily="Geist Mono, Consolas"
+                               FontSize="34"
+                               FontWeight="Bold"
+                               Foreground="#171B19" />
+                    <TextBlock Text="FFmpeg 并发录制任务" FontSize="10" Foreground="#8B887E" />
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="3" Classes="card" Padding="20,18">
+                  <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="档案占用" FontSize="11" Foreground="#77766E" />
+                      <lucide:LucideIcon Grid.Column="1" Kind="HardDrive" Size="17" Foreground="#C47A15" />
+                    </Grid>
+                    <TextBlock Text="{Binding TotalRecordedSizeText}"
+                               FontFamily="Geist Mono, Consolas"
+                               FontSize="27"
+                               FontWeight="Bold"
+                               Foreground="#171B19" />
+                    <TextBlock FontSize="10" Foreground="#8B887E">
+                      <Run Text="{Binding RecordingHistoryCountText}" />
+                      <Run Text=" 个录制文件" />
+                    </TextBlock>
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <Grid ColumnDefinitions="1.62*,1*">
+                <Border Grid.Column="0" Classes="card" Margin="0,0,16,0" Padding="20">
+                  <StackPanel Spacing="15">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="直播队列" Classes="cardTitle" />
+                        <TextBlock Text="所有直播间的最新巡检结果" FontSize="10" Foreground="#8A877D" />
+                      </StackPanel>
+                      <arc:Button Grid.Column="1"
+                                  Variant="Secondary"
+                                  Command="{Binding NavigateCommand}"
+                                  CommandParameter="rooms"
+                                  Content="管理房间" />
+                    </Grid>
+
+                    <Border Classes="divider" />
+
+                    <ScrollViewer MaxHeight="440" VerticalScrollBarVisibility="Auto">
+                      <ItemsControl ItemsSource="{Binding Rooms}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="vm:RoomItemViewModel" x:CompileBindings="True">
+                            <Border Padding="0,12" BorderBrush="#ECE5D9" BorderThickness="0,0,0,1">
+                              <Grid ColumnDefinitions="46,*,Auto" ColumnSpacing="12">
+                                <Border Width="44"
+                                        Height="44"
+                                        CornerRadius="13"
+                                        Background="{Binding PlatformSoftBrush}"
+                                        BorderBrush="{Binding PlatformBrush}"
+                                        BorderThickness="1">
+                                  <TextBlock Text="{Binding PlatformCode}"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"
+                                             FontFamily="Geist Mono, Consolas"
+                                             FontSize="9"
+                                             FontWeight="Bold"
+                                             Foreground="{Binding PlatformBrush}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                  <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="#232724"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="260" />
+                                    <arc:Badge Content="{Binding StatusText}" Tone="{Binding StatusTone}" Size="Small" />
+                                  </StackPanel>
+                                  <TextBlock Text="{Binding RoomSummary}"
+                                             FontSize="10"
+                                             Foreground="#858177"
+                                             TextTrimming="CharacterEllipsis"
+                                             MaxWidth="390" />
+                                  <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock Text="{Binding ViewerText}" FontSize="9" Foreground="#9B968B" />
+                                    <TextBlock Text="{Binding LastCheckedText}" FontSize="9" Foreground="#9B968B" />
+                                    <TextBlock Text="{Binding RecordingDurationText}"
+                                               FontFamily="Geist Mono, Consolas"
+                                               FontSize="9"
+                                               Foreground="#D94A3A" />
+                                  </StackPanel>
+                                </StackPanel>
+                                <arc:Button Grid.Column="2"
+                                            Variant="Secondary"
+                                            Command="{Binding $parent[Window].DataContext.RoomPrimaryActionCommand}"
+                                            CommandParameter="{Binding}"
+                                            Content="{Binding PrimaryActionText}"
+                                            IsLoading="{Binding IsChecking}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+
+                    <arc:EmptyState IsVisible="{Binding HasNoRooms}"
+                                    Title="还没有监控目标"
+                                    Description="添加一个直播间链接，LiveHelper 会定时检查开播状态，并可按设置自动录制。" />
+
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasRooms}">
+                      <TextBlock Text="状态会按巡检间隔自动刷新" FontSize="9" Foreground="#A09B90" VerticalAlignment="Center" />
+                      <arc:Button Grid.Column="1"
+                                  Variant="Ghost"
+                                  Command="{Binding AddRoomCommand}"
+                                  Content="添加直播间" />
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+            <StackPanel Grid.Column="1" Spacing="16">
+                  <Border Classes="card" Padding="20">
+                    <StackPanel Spacing="13">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="外部工具链" Classes="cardTitle" />
+                          <TextBlock Text="{Binding ToolChainTitle}" FontSize="10" Foreground="#8A877D" />
+                        </StackPanel>
+                        <arc:Button Grid.Column="1"
+                                    Variant="Ghost"
+                                    Command="{Binding CheckToolsCommand}"
+                                    Content="{Binding CheckToolsButtonText}"
+                                    IsLoading="{Binding IsCheckingTools}" />
+                      </Grid>
+
+                      <Border Classes="softCard" Padding="12">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                          <Border Width="32" Height="32" CornerRadius="9" Background="#ECE6DA">
+                            <lucide:LucideIcon Kind="Terminal" Size="15" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#4F544F" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="yt-dlp" FontFamily="Geist Mono, Consolas" FontSize="11" FontWeight="SemiBold" Foreground="#2D312E" />
+                            <TextBlock Text="{Binding YtDlpDetailText}" FontSize="9" Foreground="#8D897F" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding YtDlpStateText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding YtDlpBrush}" VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+
+                      <Border Classes="softCard" Padding="12">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                          <Border Width="32" Height="32" CornerRadius="9" Background="#ECE6DA">
+                            <lucide:LucideIcon Kind="Video" Size="15" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#4F544F" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="ffmpeg" FontFamily="Geist Mono, Consolas" FontSize="11" FontWeight="SemiBold" Foreground="#2D312E" />
+                            <TextBlock Text="{Binding FfmpegDetailText}" FontSize="9" Foreground="#8D897F" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding FfmpegStateText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding FfmpegBrush}" VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+
+                  <Border Classes="card" Padding="20">
+                    <StackPanel Spacing="12">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="活动记录" Classes="cardTitle" />
+                        <arc:Button Grid.Column="1"
+                                    Variant="Ghost"
+                                    Command="{Binding ClearActivitiesCommand}"
+                                    Content="清空" />
+                      </Grid>
+                      <ScrollViewer MaxHeight="310" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Activities}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:ActivityItemViewModel" x:CompileBindings="True">
+                              <Grid ColumnDefinitions="8,*" Margin="0,5">
+                                <Border Width="6" Height="6" CornerRadius="3" Background="{Binding DotBrush}" VerticalAlignment="Top" Margin="0,5,0,0" />
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                  <TextBlock Text="{Binding Message}" FontSize="10" Foreground="#4C504C" TextWrapping="Wrap" />
+                                  <TextBlock Text="{Binding TimeText}" FontFamily="Geist Mono, Consolas" FontSize="8" Foreground="#A19C91" />
+                                </StackPanel>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </ScrollViewer>
+                      <arc:EmptyState IsVisible="{Binding !HasActivities}"
+                                      Title="暂无活动"
+                                      Description="巡检、开播和录制事件会显示在这里。" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+
+            <!-- Rooms -->
+            <StackPanel Spacing="18" IsVisible="{Binding IsRoomsPage}">
+              <Border Classes="card" Padding="20">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="cardTitle" Text="监控清单" />
+                    <TextBlock FontSize="10" Foreground="#858177">
+                      <Run Text="{Binding RoomCount}" />
+                      <Run Text=" 个房间，其中 " />
+                      <Run Text="{Binding LiveRoomCount}" />
+                      <Run Text=" 个正在直播" />
+                    </TextBlock>
+                  </StackPanel>
+                  <arc:Button Grid.Column="1" Variant="Primary" Command="{Binding AddRoomCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <lucide:LucideIcon Kind="Plus" Size="15" />
+                      <TextBlock Text="添加直播间" FontSize="12" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </arc:Button>
+                </Grid>
+              </Border>
+
+              <ItemsControl ItemsSource="{Binding Rooms}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:RoomItemViewModel" x:CompileBindings="True">
+                    <Border Classes="card" Width="344" Margin="0,0,16,16" Padding="0">
+                      <Grid RowDefinitions="5,Auto">
+                        <Border Grid.Row="0"
+                                Height="5"
+                                CornerRadius="18,18,0,0"
+                                Background="{Binding PlatformBrush}" />
+                        <StackPanel Grid.Row="1" Margin="18,15,18,17" Spacing="14">
+                          <Grid ColumnDefinitions="46,*,Auto" ColumnSpacing="11">
+                            <Border Width="44" Height="44" CornerRadius="13"
+                                    Background="{Binding PlatformSoftBrush}"
+                                    BorderBrush="{Binding PlatformBrush}" BorderThickness="1">
+                              <TextBlock Text="{Binding PlatformCode}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                         FontFamily="Geist Mono, Consolas" FontSize="9"
+                                         FontWeight="Bold" Foreground="{Binding PlatformBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding DisplayName}"
+                                         FontSize="14" FontWeight="SemiBold"
+                                         Foreground="#1E221F" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                              <TextBlock Text="{Binding AnchorName}"
+                                         FontSize="9" Foreground="#8A867C"
+                                         TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                            </StackPanel>
+                            <arc:Badge Grid.Column="2"
+                                       Content="{Binding StatusText}"
+                                       Tone="{Binding StatusTone}"
+                                       Size="Small" />
+                          </Grid>
+
+                          <Border Classes="softCard" Padding="12">
+                            <StackPanel Spacing="7">
+                              <TextBlock Text="{Binding LiveTitle}"
+                                         FontSize="11" FontWeight="SemiBold" Foreground="#383C38"
+                                         TextWrapping="Wrap" MaxLines="2" />
+                              <Grid ColumnDefinitions="*,*">
+                                <StackPanel Spacing="1">
+                                  <TextBlock Text="人气" FontSize="8" Foreground="#999489" />
+                                  <TextBlock Text="{Binding ViewerText}" FontSize="10" Foreground="#555A55" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                  <TextBlock Text="最近巡检" FontSize="8" Foreground="#999489" />
+                                  <TextBlock Text="{Binding LastCheckedText}" FontSize="10" Foreground="#555A55" />
+                                </StackPanel>
+                              </Grid>
+                              <TextBlock Text="{Binding IssueText}"
+                                         IsVisible="{Binding HasIssue}"
+                                         FontSize="9" Foreground="#C85443" TextWrapping="Wrap" />
+                            </StackPanel>
+                          </Border>
+
+                          <Grid ColumnDefinitions="*,*">
+                            <StackPanel Spacing="4">
+                              <TextBlock Text="自动监控" FontSize="9" Foreground="#858177" />
+                              <arc:Switch IsChecked="{Binding IsMonitored, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                              <TextBlock Text="自动录制" FontSize="9" Foreground="#858177" />
+                              <arc:Switch IsChecked="{Binding AutoRecord, Mode=TwoWay}" />
+                            </StackPanel>
+                          </Grid>
+
+                          <TextBlock Text="{Binding RecordingDurationText}"
+                                     IsVisible="{Binding IsRecording}"
+                                     FontFamily="Geist Mono, Consolas"
+                                     FontSize="10" Foreground="#D94A3A" />
+
+                          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+                            <arc:Button Variant="Primary"
+                                        Command="{Binding $parent[Window].DataContext.RoomPrimaryActionCommand}"
+                                        CommandParameter="{Binding}"
+                                        Content="{Binding PrimaryActionText}"
+                                        IsLoading="{Binding IsChecking}" />
+                            <arc:Button Grid.Column="1"
+                                        Variant="Secondary"
+                                        Command="{Binding $parent[Window].DataContext.CheckRoomCommand}"
+                                        CommandParameter="{Binding}"
+                                        Content="检查" />
+                            <arc:Button Grid.Column="2"
+                                        Variant="Danger"
+                                        Command="{Binding $parent[Window].DataContext.RemoveRoomCommand}"
+                                        CommandParameter="{Binding}"
+                                        Content="移除" />
+                          </Grid>
+
+                          <Button Classes="quick"
+                                  Command="{Binding $parent[Window].DataContext.OpenRoomUrlCommand}"
+                                  CommandParameter="{Binding}"
+                                  HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock Text="{Binding Url}" FontSize="9" Foreground="#77766E"
+                                         TextTrimming="CharacterEllipsis" MaxWidth="255" />
+                              <lucide:LucideIcon Grid.Column="1" Kind="ExternalLink" Size="13" Foreground="#77766E" />
+                            </Grid>
+                          </Button>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Border Classes="card" IsVisible="{Binding HasNoRooms}" Padding="20">
+                <arc:EmptyState Title="直播间矩阵还是空的"
+                                Description="支持 B 站、抖音、虎牙、斗鱼、快手、Twitch、YouTube、TikTok、小红书与 CHZZK。">
+                  <arc:EmptyState.Action>
+                    <arc:Button Variant="Primary" Command="{Binding AddRoomCommand}" Content="添加第一个直播间" />
+                  </arc:EmptyState.Action>
+                </arc:EmptyState>
+              </Border>
+            </StackPanel>
+
+            <!-- Recordings -->
+            <StackPanel Spacing="18" IsVisible="{Binding IsRecordingsPage}">
+              <Grid ColumnDefinitions="1.4*,1*,1*">
+                <Border Grid.Column="0" Classes="card" Margin="0,0,12,0" Padding="20">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="录制档案" Classes="cardTitle" />
+                    <TextBlock FontSize="10" Foreground="#858177">完成录制后自动写入历史记录</TextBlock>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Classes="card" Margin="0,0,12,0" Padding="20">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="文件数量" FontSize="10" Foreground="#858177" />
+                    <TextBlock Text="{Binding RecordingHistoryCountText}" FontFamily="Geist Mono, Consolas"
+                               FontSize="29" FontWeight="Bold" Foreground="#1B201D" />
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Classes="card" Padding="20">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="占用空间" FontSize="10" Foreground="#858177" />
+                    <TextBlock Text="{Binding TotalRecordedSizeText}" FontFamily="Geist Mono, Consolas"
+                               FontSize="27" FontWeight="Bold" Foreground="#1B201D" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <Border Classes="card" Padding="20">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="输出目录" Classes="cardTitle" />
+                    <TextBlock Text="{Binding Settings.OutputDirectory}" FontFamily="Geist Mono, Consolas"
+                               FontSize="10" Foreground="#77766E" TextTrimming="CharacterEllipsis" MaxWidth="720" />
+                  </StackPanel>
+                  <arc:Button Grid.Column="1" Variant="Secondary" Command="{Binding OpenOutputFolderCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <lucide:LucideIcon Kind="FolderOpen" Size="15" />
+                      <TextBlock Text="打开目录" FontSize="11" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </arc:Button>
+                </Grid>
+              </Border>
+
+              <ItemsControl ItemsSource="{Binding Recordings}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:RecordingItemViewModel" x:CompileBindings="True">
+                    <Border Classes="card" Margin="0,0,0,10" Padding="16,13">
+                      <Grid ColumnDefinitions="42,1.5*,1*,0.7*,0.65*,Auto" ColumnSpacing="14">
+                        <Border Width="40" Height="40" CornerRadius="12" Background="#F1EBDD">
+                          <lucide:LucideIcon Kind="FileVideo" Size="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D94A3A" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold"
+                                     Foreground="#292D2A" TextTrimming="CharacterEllipsis" MaxWidth="360" />
+                          <TextBlock Text="{Binding RoomName}" FontSize="9" Foreground="#88847A" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="平台" FontSize="8" Foreground="#A39E92" />
+                          <TextBlock Text="{Binding PlatformName}" FontSize="10" Foreground="#555A55" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="时长" FontSize="8" Foreground="#A39E92" />
+                          <TextBlock Text="{Binding DurationText}" FontFamily="Geist Mono, Consolas" FontSize="10" Foreground="#555A55" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="大小" FontSize="8" Foreground="#A39E92" />
+                          <TextBlock Text="{Binding SizeText}" FontFamily="Geist Mono, Consolas" FontSize="10" Foreground="#555A55" />
+                        </StackPanel>
+                        <arc:Button Grid.Column="5"
+                                    Variant="Ghost"
+                                    Command="{Binding $parent[Window].DataContext.OpenRecordingFolderCommand}"
+                                    CommandParameter="{Binding}">
+                          <StackPanel Orientation="Horizontal" Spacing="5">
+                            <lucide:LucideIcon Kind="FolderOpen" Size="14" />
+                            <TextBlock Text="定位" FontSize="10" />
+                          </StackPanel>
+                        </arc:Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Border Classes="card" IsVisible="{Binding HasNoRecordings}" Padding="20">
+                <arc:EmptyState Title="还没有录制文件"
+                                Description="当直播间开播且自动录制开启时，完成的文件会出现在这里。" />
+              </Border>
+            </StackPanel>
+
+            <!-- Settings -->
+            <StackPanel IsVisible="{Binding IsSettingsPage}" Spacing="14">
+              <Grid ColumnDefinitions="1.25*,0.75*" ColumnSpacing="14">
+                <StackPanel Grid.Column="0" Spacing="14">
+                  <Border Classes="card" Padding="20">
+                    <StackPanel Spacing="12">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="录制工作区" Classes="cardTitle" />
+                          <TextBlock Text="配置、房间列表和录制文件跟随同一个目录移动"
+                                     FontSize="10" Foreground="#858177" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Padding="9,5" CornerRadius="9" Background="#EEF5EF"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding WorkspaceModeText}" FontSize="9"
+                                     FontWeight="SemiBold" Foreground="#1C8B63" />
+                        </Border>
+                      </Grid>
+
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+                        <arc:Input Grid.Column="0" Label="录制输出目录"
+                                   Text="{Binding OutputDirectory, Mode=TwoWay}"
+                                   Placeholder="例如 D:\LiveRecordings"
+                                   Description="选定含 LiveHelper.config.json 的目录时，会自动载入其中的配置。" />
+                        <arc:Button Grid.Column="1" Variant="Secondary" Margin="0,21,0,6"
+                                    Command="{Binding PickOutputFolderCommand}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <lucide:LucideIcon Kind="FolderSearch" Size="14" />
+                            <TextBlock Text="选择目录" FontSize="10" />
+                          </StackPanel>
+                        </arc:Button>
+                        <arc:Button Grid.Column="2" Variant="Ghost" Margin="0,21,0,6"
+                                    Command="{Binding OpenOutputFolderCommand}" Content="打开" />
+                      </Grid>
+
+                      <Border Background="#F8F4EA" BorderBrush="#E6DED0" BorderThickness="1"
+                              CornerRadius="10" Padding="11,8">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                          <lucide:LucideIcon Kind="FileJson" Size="14" Foreground="#C47A15"
+                                             VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Text="{Binding WorkspaceConfigPath}"
+                                     FontFamily="Geist Mono, Consolas" FontSize="9"
+                                     Foreground="#77766E" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                      </Border>
+
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <arc:Input Grid.Column="0" Label="文件夹模板"
+                                   Text="{Binding FolderTemplate, Mode=TwoWay}"
+                                   Description="可用 {platform}、{roomId}、{roomName}" />
+                        <arc:Input Grid.Column="1" Label="文件名模板"
+                                   Text="{Binding FileNameTemplate, Mode=TwoWay}"
+                                   Description="可用 {date}、{time}、{title}、{anchor}" />
+                      </Grid>
+
+                      <Border Background="#101615" CornerRadius="11" Padding="12,9">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                          <lucide:LucideIcon Kind="FolderTree" Size="14" Foreground="#F06435"
+                                             VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="{Binding TemplatePreviewFolder}" FontSize="10"
+                                       FontFamily="Geist Mono, Consolas" Foreground="#D7E0DC" />
+                            <TextBlock Text="{Binding TemplatePreviewFileName}" FontSize="9"
+                                       FontFamily="Geist Mono, Consolas" Foreground="#84918B" />
+                          </StackPanel>
+                          <arc:Button Grid.Column="2" Variant="Ghost"
+                                      Command="{Binding ReloadWorkspaceCommand}" Content="载入配置" />
+                        </Grid>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                    <Border Grid.Column="0" Classes="card" Padding="18">
+                      <StackPanel Spacing="10">
+                        <TextBlock Text="巡检与并发" Classes="cardTitle" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                          <arc:Input Grid.Column="0" Label="间隔（秒）"
+                                     Text="{Binding MonitorIntervalText, Mode=TwoWay}" />
+                          <arc:Input Grid.Column="1" Label="检查并发"
+                                     Text="{Binding MaxChecksText, Mode=TwoWay}" />
+                        </Grid>
+                        <arc:Input Label="录制并发" Text="{Binding MaxRecordingsText, Mode=TwoWay}" />
+                        <arc:Switch IsChecked="{Binding StartMonitoringOnLaunch, Mode=TwoWay}"
+                                    Content="启动时自动巡检" />
+                        <arc:Switch IsChecked="{Binding LaunchAtStartup, Mode=TwoWay}"
+                                    Content="Windows 开机自启" />
+                        <arc:Switch IsChecked="{Binding StartMinimized, Mode=TwoWay}"
+                                    Content="启动后最小化到任务栏" />
+                      </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Classes="card" Padding="18">
+                      <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Text="录制策略" Classes="cardTitle" />
+                          <TextBlock Grid.Column="1" Text="{Binding RecordingFormatText}"
+                                     FontFamily="Geist Mono, Consolas" FontSize="10"
+                                     Foreground="#F06435" VerticalAlignment="Center" />
+                        </Grid>
+                        <arc:Switch IsChecked="{Binding RecordingEnabled, Mode=TwoWay}"
+                                    Content="自动开始录制" />
+                        <StackPanel Spacing="5">
+                          <TextBlock Text="录制格式" FontSize="11" FontWeight="SemiBold" Foreground="#343834" />
+                          <ComboBox ItemsSource="{Binding RecordingFormats}"
+                                    SelectedItem="{Binding SelectedRecordingFormat, Mode=TwoWay}"
+                                    HorizontalAlignment="Stretch" />
+                          <TextBlock Text="{Binding RecordingStrategyHint}" FontSize="9"
+                                                     Foreground="#8D897F" TextWrapping="Wrap" />
+                          <TextBlock Text="若主要在意 CPU 与画质，建议选 MKV：原流直拷，不在录制时转码；MP4 对 FLV 直播源会转码以保证时长和兼容性。"
+                                     FontSize="9" Foreground="#A07850" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <arc:Input Label="分段时长（分钟）"
+                                   Text="{Binding SegmentMinutesText, Mode=TwoWay}"
+                                   Placeholder="0"
+                                   Description="{Binding SegmentSummaryText}" />
+                        <arc:Switch IsChecked="{Binding SaveThumbnail, Mode=TwoWay}"
+                                    Content="保存直播封面" />
+                        <arc:Switch IsChecked="{Binding SaveDanmaku, Mode=TwoWay}"
+                                    Content="保存弹幕（仅 B 站）" />
+                        <TextBlock Text="弹幕保存为与视频同名的 .danmaku.jsonl，按行记录时间、昵称与内容；停止录制后可在播放器或脚本中核对。"
+                                   FontSize="9" Foreground="#8D897F" TextWrapping="Wrap" />
+                        <arc:Input Label="画质格式" Text="{Binding Quality, Mode=TwoWay}"
+                                   Description="传给 yt-dlp 的 --format 参数" />
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="14">
+                  <Border Classes="card" Padding="18">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="内置流媒体工具" Classes="cardTitle" />
+                          <TextBlock Text="{Binding ToolChainTitle}" FontSize="10" Foreground="#858177" />
+                        </StackPanel>
+                        <arc:Button Grid.Column="1" Variant="Ghost"
+                                    Command="{Binding CheckToolsCommand}"
+                                    Content="{Binding CheckToolsButtonText}"
+                                    IsLoading="{Binding IsCheckingTools}" />
+                      </Grid>
+                      <Border Classes="softCard" Padding="11">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                          <lucide:LucideIcon Kind="Terminal" Size="14" Foreground="#5F665F"
+                                             VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="yt-dlp" FontFamily="Geist Mono, Consolas"
+                                       FontSize="10" Foreground="#343834" />
+                            <TextBlock Text="{Binding YtDlpDetailText}" FontSize="8"
+                                       Foreground="#8D897F" TextTrimming="CharacterEllipsis" MaxWidth="165" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding YtDlpStateText}" FontSize="9"
+                                     FontWeight="SemiBold" Foreground="{Binding YtDlpBrush}"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                      <Border Classes="softCard" Padding="11">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                          <lucide:LucideIcon Kind="Video" Size="14" Foreground="#5F665F"
+                                             VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" Spacing="1">
+                            <TextBlock Text="ffmpeg" FontFamily="Geist Mono, Consolas"
+                                       FontSize="10" Foreground="#343834" />
+                            <TextBlock Text="{Binding FfmpegDetailText}" FontSize="8"
+                                       Foreground="#8D897F" TextTrimming="CharacterEllipsis" MaxWidth="165" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding FfmpegStateText}" FontSize="9"
+                                     FontWeight="SemiBold" Foreground="{Binding FfmpegBrush}"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                      <arc:Input Label="yt-dlp" Text="{Binding YtDlpPath, Mode=TwoWay}" />
+                      <arc:Input Label="ffmpeg" Text="{Binding FfmpegPath, Mode=TwoWay}" />
+                    </StackPanel>
+                  </Border>
+
+                  <Border Classes="card" Padding="18">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="网络与解析" Classes="cardTitle" />
+                      <arc:Input Label="代理 URL（可选）" Text="{Binding ProxyUrl, Mode=TwoWay}"
+                                 Placeholder="http://127.0.0.1:7890"
+                                 Description="仅作用于 yt-dlp 探测" />
+                      <TextBlock Text="抖音与 B 站元数据使用内置解析；其他平台在需要时调用 yt-dlp。"
+                                 FontSize="9" Foreground="#8D897F" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+
+                  <Border CornerRadius="16" Padding="17" Background="#101615">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="建议" FontSize="11" FontWeight="SemiBold" Foreground="#FFF8EE" />
+                        <lucide:LucideIcon Grid.Column="1" Kind="Sparkles" Size="14" Foreground="#F06435" />
+                      </Grid>
+                      <TextBlock Text="配置随录制目录移动。换电脑后选中原录制目录，即可恢复房间、历史和命名规则。"
+                                 FontSize="9" Foreground="#9BA6A1" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Grid>
+
+              <Border Classes="card" Padding="14">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SettingsFeedback}" IsVisible="{Binding HasSettingsFeedback}"
+                               FontSize="10" FontWeight="SemiBold" Foreground="{Binding SettingsFeedbackBrush}" />
+                    <TextBlock Text="保存时会创建或更新工作区配置，并在目录变化后重新启动巡检。"
+                               FontSize="9" Foreground="#969186" />
+                  </StackPanel>
+                  <arc:Button Grid.Column="1" Variant="Primary" Command="{Binding SaveSettingsCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <lucide:LucideIcon Kind="CheckCircle2" Size="15" />
+                      <TextBlock Text="保存并应用" FontSize="12" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </arc:Button>
+                </Grid>
+              </Border>
+            </StackPanel>
+          </Grid>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
+
+    <!-- Add room overlay -->
+    <Grid Grid.RowSpan="2" IsVisible="{Binding IsAddRoomOpen}" Background="#B50C1110" Panel.ZIndex="100">
+      <Border Width="540"
+              Padding="26"
+              CornerRadius="22"
+              Background="#FFFCF6"
+              BorderBrush="#D9D2C4"
+              BorderThickness="1"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              BoxShadow="0 24 80 0 #4D000000">
+        <StackPanel Spacing="18">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+              <TextBlock Text="NEW SIGNAL" Classes="eyebrow" />
+              <TextBlock Text="添加直播间"
+                         FontFamily="Geist, Microsoft YaHei UI"
+                         FontSize="25" FontWeight="Bold" Foreground="#151A17" />
+              <TextBlock Text="粘贴直播间地址，平台会自动识别。" FontSize="11" Foreground="#858177" />
+            </StackPanel>
+            <arc:Button Grid.Column="1" Variant="Ghost" Command="{Binding CancelAddRoomCommand}" Content="关闭" />
+          </Grid>
+
+          <Border Background="{Binding NewRoomPlatformSoftBrush}"
+                  BorderBrush="{Binding NewRoomPlatformBrush}"
+                  BorderThickness="1"
+                  CornerRadius="13"
+                  Padding="14">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+              <Border Width="34" Height="34" CornerRadius="10" Background="{Binding NewRoomPlatformBrush}">
+                <lucide:LucideIcon Kind="RadioTower" Size="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#FFFFFF" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding NewRoomPlatformName}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{Binding NewRoomPlatformBrush}" />
+                <TextBlock Text="{Binding NewRoomPlatformHint}" FontSize="9" Foreground="#77766E" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <arc:Input Label="直播间地址"
+                     Placeholder="https://live.bilibili.com/..."
+                     Text="{Binding NewRoomUrl, Mode=TwoWay}"
+                     IsInvalid="{Binding HasAddRoomError}"
+                     ErrorMessage="{Binding AddRoomError}" />
+          <arc:Input Label="自定义名称（可选）"
+                     Placeholder="留空则优先使用主播名"
+                     Text="{Binding NewRoomName, Mode=TwoWay}" />
+
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="自动录制" FontSize="11" FontWeight="SemiBold" Foreground="#343834" />
+              <TextBlock Text="检测到开播且获得媒体流后自动开始录制" FontSize="9" Foreground="#8A867C" />
+            </StackPanel>
+            <arc:Switch Grid.Column="1" IsChecked="{Binding NewRoomAutoRecord, Mode=TwoWay}" />
+          </Grid>
+
+          <Border Classes="divider" />
+
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Text="添加后可在直播间矩阵中调整监控与录制策略。"
+                       FontSize="9" Foreground="#999489" VerticalAlignment="Center" />
+            <arc:Button Grid.Column="1" Variant="Secondary" Command="{Binding CancelAddRoomCommand}"
+                        Content="取消" Margin="0,0,8,0" />
+            <arc:Button Grid.Column="2" Variant="Primary" Command="{Binding ConfirmAddRoomCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <lucide:LucideIcon Kind="Plus" Size="15" />
+                <TextBlock Text="加入监控" FontSize="12" FontWeight="SemiBold" />
+              </StackPanel>
+            </arc:Button>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

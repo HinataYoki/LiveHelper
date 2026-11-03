@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">LiveHelper</title>
+  <desc id="desc">A live recording mark with a coral record button and broadcast signal waves.</desc>
+  <defs>
+    <linearGradient id="surface" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B2421"/>
+      <stop offset="0.58" stop-color="#101514"/>
+      <stop offset="1" stop-color="#080C0B"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 256) rotate(90) scale(230)">
+      <stop offset="0" stop-color="#F06435" stop-opacity="0.3"/>
+      <stop offset="0.62" stop-color="#F06435" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#F06435" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="172" y1="150" x2="354" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFDF7"/>
+      <stop offset="1" stop-color="#BFC8C3"/>
+    </linearGradient>
+    <linearGradient id="record" x1="196" y1="188" x2="326" y2="332" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF8256"/>
+      <stop offset="1" stop-color="#E64F28"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#surface)"/>
+  <rect x="17.5" y="17.5" width="477" height="477" rx="114.5" fill="none" stroke="#34423D" stroke-width="3"/>
+  <rect x="28" y="28" width="456" height="456" rx="105" fill="url(#halo)"/>
+
+  <g fill="none" stroke="#F06435" stroke-linecap="round">
+    <path d="M348 166C387 196 407 239 402 284" stroke-width="22" opacity="0.9"/>
+    <path d="M380 122C438 171 462 236 450 304" stroke-width="16" opacity="0.48"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <circle cx="256" cy="256" r="124" fill="#0D1211" stroke="url(#ring)" stroke-width="28"/>
+    <circle cx="256" cy="256" r="86" fill="url(#record)"/>
+  </g>
+
+  <circle cx="256" cy="256" r="34" fill="#FFF7EE"/>
+  <circle cx="128" cy="384" r="17" fill="#1C8B63"/>
+</svg>

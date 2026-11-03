@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  validate:
+    name: Validate release scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate package script
+        run: bash -n .github/scripts/package-macos.sh
+
+  windows:
+    name: Windows AOT
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Restore
+        run: dotnet restore src/LiveHelper.Desktop/LiveHelper.Desktop.csproj -r win-x64
+      - name: Publish
+        shell: pwsh
+        run: |
+          $version = if ("${{ github.ref_name }}".StartsWith("v")) {
+            "${{ github.ref_name }}".Substring(1)
+          } else {
+            "${{ github.ref_name }}"
+          }
+          if (-not $version -or $version -eq "refs/heads/main") { $version = "dev" }
+          dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj `
+            -c Release -r win-x64 -p:PublishAot=true -p:PublishSingleFile=true `
+            -p:DebugSymbols=false -p:DebugType=None `
+            --self-contained true -o out/win-x64
+          New-Item -ItemType Directory -Force -Path dist/LiveHelper/tools | Out-Null
+          Copy-Item out/win-x64/LiveHelper.exe dist/LiveHelper/
+          Copy-Item build/ffmpeg/ffmpeg.exe dist/LiveHelper/tools/
+          Copy-Item build/ffmpeg/FFmpeg-COPYING.GPLv2.txt dist/LiveHelper/tools/
+          Copy-Item build/ffmpeg/x264-COPYING.txt dist/LiveHelper/tools/
+          Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile "dist/LiveHelper/tools/yt-dlp.exe"
+          cd dist
+          Compress-Archive -Path LiveHelper -DestinationPath "../LiveHelper-win-x64.zip" -Force
+          cd ..
+          Move-Item "LiveHelper-win-x64.zip" "LiveHelper-$version-win-x64.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: livehelper-win-x64
+          path: LiveHelper-*-win-x64.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS AOT
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+          - runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_name="${{ github.ref_name }}"
+          version="dev"
+          if [[ "$ref_name" == v* ]]; then
+            version="${ref_name#v}"
+          fi
+          if [[ "${{ matrix.runner }}" == *intel* ]]; then
+            rid=osx-x64
+            artifact_rid=osx-x64
+          else
+            rid="osx-a"
+            rid="${rid}rm64"
+            artifact_rid="osx-a"
+            artifact_rid="${artifact_rid}rm64"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "ARTIFACT_RID=$artifact_rid" >> "$GITHUB_ENV"
+          echo "OUTPUT_DIR=out/$rid" >> "$GITHUB_ENV"
+          echo "PACKAGE_NAME=dist/LiveHelper-$artifact_rid.zip" >> "$GITHUB_ENV"
+          dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj \
+            -c Release -r "$rid" -p:PublishAot=true -p:PublishSingleFile=true \
+            -p:DebugSymbols=false -p:DebugType=None \
+            --self-contained true -o "out/$rid"
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          bash .github/scripts/package-macos.sh \
+            "$OUTPUT_DIR" \
+            "$PACKAGE_NAME" \
+            "$VERSION"
+          if [[ -z "${MACOS_CERTIFICATE:-}" ]]; then
+            mv "$PACKAGE_NAME" \
+              "${PACKAGE_NAME%.zip}-unsigned.zip"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: livehelper-${{ matrix.runner }}
+          path: dist/LiveHelper-*.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux AOT
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-6 libice6 libsm6 libfontconfig1 libfreetype6
+      - name: Publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj \
+            -c Release -r linux-x64 -p:PublishAot=true -p:PublishSingleFile=true \
+            -p:DebugSymbols=false -p:DebugType=None \
+            --self-contained true -o out/linux-x64
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/LiveHelper
+          cp out/linux-x64/LiveHelper dist/LiveHelper/
+          chmod +x dist/LiveHelper/LiveHelper
+          cd dist
+          zip -r ../LiveHelper-linux-x64.zip LiveHelper
+      - uses: actions/upload-artifact@v4
+        with:
+          name: livehelper-linux-x64
+          path: LiveHelper-linux-x64.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - validate
+      - windows
+      - macos
+      - linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Verify assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lh release-assets
+          test -n "$(find release-assets -name '*.zip' -print -quit)"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## 安装
+
+            - Windows：解压后运行 `LiveHelper.exe`，`tools` 目录已内置 ffmpeg 和 yt-dlp。
+            - macOS：解压后把 `LiveHelper.app` 拖进“应用程序”。未签名包会触发 Gatekeeper 拦截，请在 Finder 中右键应用，选择“打开”；也可以到“系统设置 → 隐私与安全性”中点击“仍要打开”。仅在确认来源为本仓库 Release 时继续。
+            - Linux：解压后运行 `LiveHelper`，需预先安装 ffmpeg 和 yt-dlp。
+
+            仅在 CI 配置了 macOS Developer ID 证书与公证凭据时，macOS 包才会完成签名和公证；否则资产名会带 `-unsigned`。
+          files: release-assets/*.zip
