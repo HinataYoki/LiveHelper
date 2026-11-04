@@ -21,6 +21,21 @@ mkdir -p "$macos" "$resources"
 cp "$publish_dir/LiveHelper" "$macos/$app_name"
 chmod 755 "$macos/$app_name"
 
+native_libraries=(
+  libAvaloniaNative.dylib
+  libHarfBuzzSharp.dylib
+  libSkiaSharp.dylib
+  libonigwrap.dylib
+)
+for library in "${native_libraries[@]}"; do
+  if [[ ! -f "$publish_dir/$library" ]]; then
+    echo "macOS publish output is missing required native library: $library" >&2
+    exit 1
+  fi
+  cp "$publish_dir/$library" "$macos/$library"
+  chmod 755 "$macos/$library"
+done
+
 cat > "$contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
