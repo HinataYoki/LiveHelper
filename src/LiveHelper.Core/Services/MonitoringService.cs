@@ -15,6 +15,7 @@ public sealed class MonitoringService : IAsyncDisposable
     private readonly LiveProbeService _probeService;
     private readonly RecordingManager _recordingManager;
     private readonly SemaphoreSlim _scanGate = new(1, 1);
+    private readonly SemaphoreSlim _scheduleChanged = new(0, 1);
     private readonly object _roomsLock = new();
     private readonly Dictionary<Guid, DateTimeOffset> _nextCheckAt = [];
     private IReadOnlyList<MonitoredRoom> _rooms = [];
@@ -53,6 +54,8 @@ public sealed class MonitoringService : IAsyncDisposable
                     firstCheckAt.AddMilliseconds(Random.Shared.Next(0, 2000)));
             }
         }
+
+        SignalScheduleChanged();
     }
 
     public Task StartAsync(AppSettings settings)
@@ -155,6 +158,7 @@ public sealed class MonitoringService : IAsyncDisposable
         {
             await CheckRoomAsync(room, settings, cancellationToken).ConfigureAwait(false);
             ScheduleNextCheck(room, settings);
+            SignalScheduleChanged();
             return true;
         }
         finally
@@ -167,6 +171,7 @@ public sealed class MonitoringService : IAsyncDisposable
     {
         await StopAsync().ConfigureAwait(false);
         _scanGate.Dispose();
+        _scheduleChanged.Dispose();
         await _recordingManager.DisposeAsync().ConfigureAwait(false);
     }
 
@@ -203,7 +208,8 @@ public sealed class MonitoringService : IAsyncDisposable
 
             try
             {
-                await Task.Delay(GetWakeDelay(), cancellationToken).ConfigureAwait(false);
+                await WaitForScheduleChangeAsync(GetWakeDelay(), cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -393,7 +399,7 @@ public sealed class MonitoringService : IAsyncDisposable
 
             if (next is null)
             {
-                return TimeSpan.FromSeconds(5);
+                return Timeout.InfiniteTimeSpan;
             }
 
             var delay = next.Value - DateTimeOffset.UtcNow;
@@ -402,7 +408,44 @@ public sealed class MonitoringService : IAsyncDisposable
                 return TimeSpan.FromSeconds(1);
             }
 
-            return delay > TimeSpan.FromSeconds(5) ? TimeSpan.FromSeconds(5) : delay;
+            return delay > TimeSpan.FromMinutes(5) ? TimeSpan.FromMinutes(5) : delay;
+        }
+    }
+
+    private async ValueTask WaitForScheduleChangeAsync(
+        TimeSpan delay,
+        CancellationToken cancellationToken)
+    {
+        if (delay == Timeout.InfiniteTimeSpan)
+        {
+            await _scheduleChanged.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (delay <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        await _scheduleChanged.WaitAsync(delay, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void SignalScheduleChanged()
+    {
+        try
+        {
+            if (_scheduleChanged.CurrentCount == 0)
+            {
+                _scheduleChanged.Release();
+            }
+        }
+        catch (SemaphoreFullException)
+        {
+            // A pending wake-up is already queued.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Monitoring is already shutting down.
         }
     }
 

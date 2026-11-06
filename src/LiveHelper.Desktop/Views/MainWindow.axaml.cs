@@ -127,6 +127,7 @@ public sealed partial class MainWindow : ArcWindow
 
     private void HideToTray()
     {
+        _viewModel.SetUiActive(false);
         ShowInTaskbar = false;
         Hide();
     }
@@ -140,6 +141,7 @@ public sealed partial class MainWindow : ArcWindow
 
         ShowInTaskbar = true;
         Show();
+        _viewModel.SetUiActive(true);
         if (WindowState == WindowState.Minimized)
         {
             WindowState = WindowState.Normal;

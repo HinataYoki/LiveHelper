@@ -29,12 +29,14 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
     private readonly Dictionary<Guid, bool> _lastLiveStates = [];
     private readonly Dictionary<Guid, string> _lastErrors = [];
+    private readonly Dictionary<Guid, string> _lastWarnings = [];
     private readonly DateTimeOffset _sessionStartedAt = DateTimeOffset.Now;
     private double _windowWidth = 1440;
     private PersistedState _state = new();
     private Page _activePage = Page.Overview;
     private bool _initialized;
     private bool _shuttingDown;
+    private bool _uiActive = true;
     private bool _isMonitoring;
     private bool _isScanning;
     private bool _isAddRoomOpen;
@@ -656,7 +658,10 @@ public sealed class MainWindowViewModel : ObservableObject
 
         _monitoring.SetRooms(Rooms.Select(item => item.Model));
         RefreshOverview();
-        _timer.Start();
+        if (_uiActive)
+        {
+            _timer.Start();
+        }
 
         if (Settings.StartMonitoringOnLaunch)
         {
@@ -672,6 +677,7 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         _shuttingDown = true;
+        _uiActive = false;
         _timer.Stop();
         _conversionCts.Cancel();
         await _monitoring.DisposeAsync();
@@ -694,6 +700,29 @@ public sealed class MainWindowViewModel : ObservableObject
 
         _lastActivationScanAt = now;
         await ScanNowAsync();
+    }
+
+    public void SetUiActive(bool active)
+    {
+        if (_uiActive == active)
+        {
+            return;
+        }
+
+        _uiActive = active;
+        if (!active)
+        {
+            _timer.Stop();
+            return;
+        }
+
+        if (_shuttingDown)
+        {
+            return;
+        }
+
+        _timer.Start();
+        OnTimerTick(null, EventArgs.Empty);
     }
 
     private void Navigate(object? parameter)
@@ -831,6 +860,7 @@ public sealed class MainWindowViewModel : ObservableObject
             Rooms.Remove(item);
             _lastLiveStates.Remove(item.Id);
             _lastErrors.Remove(item.Id);
+            _lastWarnings.Remove(item.Id);
             _monitoring.SetRooms(Rooms.Select(room => room.Model));
             RefreshOverview();
             AddActivity($"已移除直播间：{item.DisplayName}。", ActivityTone.Info);
@@ -1254,11 +1284,14 @@ public sealed class MainWindowViewModel : ObservableObject
 
             _lastLiveStates.TryGetValue(item.Id, out var wasLive);
             _lastErrors.TryGetValue(item.Id, out var previousError);
+            _lastWarnings.TryGetValue(item.Id, out var previousWarning);
             previousError ??= string.Empty;
+            previousWarning ??= string.Empty;
 
             item.RefreshAll();
             _lastLiveStates[item.Id] = item.IsLive;
             _lastErrors[item.Id] = item.Model.LastError;
+            _lastWarnings[item.Id] = item.Model.LastWarning;
 
             var changed = false;
             if (!wasLive && item.IsLive)
@@ -1278,7 +1311,8 @@ public sealed class MainWindowViewModel : ObservableObject
                 AddActivity($"{item.DisplayName}：{item.Model.LastError}", ActivityTone.Error);
                 changed = true;
             }
-            else if (!string.IsNullOrWhiteSpace(item.Model.LastWarning))
+            else if (!string.IsNullOrWhiteSpace(item.Model.LastWarning)
+                     && !string.Equals(previousWarning, item.Model.LastWarning, StringComparison.Ordinal))
             {
                 AddActivity($"{item.DisplayName}：{item.Model.LastWarning}", ActivityTone.Warning);
             }
@@ -1383,6 +1417,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void OnTimerTick(object? sender, EventArgs e)
     {
+        if (!_uiActive)
+        {
+            return;
+        }
+
         ClockText = DateTime.Now.ToString("HH:mm");
         OnPropertyChanged(nameof(ClockText));
         OnPropertyChanged(nameof(TodayText));
@@ -1419,6 +1458,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Rooms.Add(item);
         _lastLiveStates[room.Id] = room.IsLive;
         _lastErrors[room.Id] = room.LastError;
+        _lastWarnings[room.Id] = room.LastWarning;
     }
 
     private void OnRoomSettingsChanged(RoomItemViewModel room)
@@ -1498,6 +1538,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Recordings.Clear();
         _lastLiveStates.Clear();
         _lastErrors.Clear();
+        _lastWarnings.Clear();
         foreach (var room in state.Rooms.OrderByDescending(room => room.CreatedAt))
         {
             room.IsLive = false;
