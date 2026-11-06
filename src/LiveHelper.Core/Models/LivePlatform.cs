@@ -39,7 +39,7 @@ public static class PlatformCatalog
             [LivePlatform.Xiaohongshu] = new(LivePlatform.Xiaohongshu, "小红书", "RED", "#FF2442", "xiaohongshu.com / xhslink.com"),
             [LivePlatform.Chzzk] = new(LivePlatform.Chzzk, "CHZZK", "CZ", "#00E77B", "chzzk.naver.com"),
             [LivePlatform.Direct] = new(LivePlatform.Direct, "直连流", "URL", "#2F7D68", "m3u8 / flv / mp4 直链"),
-            [LivePlatform.Generic] = new(LivePlatform.Generic, "通用平台", "WEB", "#52606D", "交给 yt-dlp 自动识别")
+            [LivePlatform.Generic] = new(LivePlatform.Generic, "通用平台", "WEB", "#52606D", "由内置媒体解析自动识别")
         };
 
     public static PlatformDescriptor Get(LivePlatform platform) =>

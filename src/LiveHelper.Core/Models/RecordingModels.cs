@@ -37,13 +37,3 @@ public sealed record RecordingHistoryItem(
 {
     public string Mp4Path { get; init; } = string.Empty;
 }
-
-public sealed record ToolHealth(
-    string Name,
-    bool IsAvailable,
-    string Version,
-    string Error)
-{
-    public static ToolHealth Missing(string name, string error) =>
-        new(name, false, string.Empty, error);
-}

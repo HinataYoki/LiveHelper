@@ -1,0 +1,195 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:arc="https://github.com/AIDotNet/TKCode.Arc"
+             xmlns:lucide="https://github.com/AIDotNet/TKCode.Arc/lucide"
+             xmlns:vm="clr-namespace:LiveHelper.Desktop.ViewModels"
+             x:Class="LiveHelper.Desktop.Views.Pages.RoomsPage"
+             x:DataType="vm:MainWindowViewModel"
+             x:CompileBindings="True">
+  <ScrollViewer VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="28,22,28,34" Spacing="16">
+      <Border Classes="panel panel-compact">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+          <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Classes="section-title" Text="监控清单" />
+              <arc:Badge Content="{Binding RoomCountText}" Tone="Neutral" Size="Small" />
+            </StackPanel>
+            <TextBlock FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                       Foreground="{arc:ArcDesignTokenResource TextSecondary}">
+              <Run Text="{Binding RoomCount}" />
+              <Run Text=" 个房间，其中 " />
+              <Run Text="{Binding LiveRoomCount}" />
+              <Run Text=" 个正在直播， " />
+              <Run Text="{Binding RecordingRoomCount}" />
+              <Run Text=" 个正在录制" />
+            </TextBlock>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9"
+                      VerticalAlignment="Center">
+            <TextBlock Classes="micro-label"
+                       Text="巡检状态"
+                       VerticalAlignment="Center" />
+            <arc:Badge Content="{Binding MonitoringStatusText}"
+                       Tone="Neutral"
+                       Size="Small" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid IsVisible="{Binding HasRooms}">
+        <ItemsControl ItemsSource="{Binding Rooms}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemWidth="370" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:RoomItemViewModel" x:CompileBindings="True">
+              <arc:Card Margin="0,0,14,14"
+                        Title="{Binding DisplayName}"
+                        Description="{Binding RoomSummary}">
+                <arc:Card.Content>
+                  <StackPanel Spacing="13">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                      <Border Width="6" Height="6"
+                              CornerRadius="3"
+                              Background="{Binding PlatformBrush}"
+                              VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding PlatformName}"
+                                 VerticalAlignment="Center"
+                                 FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                 FontWeight="SemiBold"
+                                 Foreground="{Binding PlatformBrush}" />
+                      <arc:Badge Grid.Column="2"
+                                 Content="{Binding StatusText}"
+                                 Tone="{Binding StatusTone}"
+                                 Size="Small" />
+                    </Grid>
+
+                    <Border Background="{arc:ArcDesignTokenResource SurfaceMuted}"
+                            CornerRadius="{arc:ArcDesignTokenResource RadiusControl}"
+                            Padding="12,10">
+                      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <StackPanel Spacing="3">
+                          <TextBlock Classes="micro-label" Text="当前人气" />
+                          <TextBlock Text="{Binding ViewerText}"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="3">
+                          <TextBlock Classes="micro-label" Text="最近巡检" />
+                          <TextBlock Text="{Binding LastCheckedText}"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="3">
+                          <TextBlock Classes="micro-label" Text="录制计时" />
+                          <TextBlock Text="{Binding RecordingDurationDisplayText}"
+                                     FontFamily="Geist Mono, Consolas"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource Danger}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+
+                    <Border Padding="10,8"
+                            CornerRadius="{arc:ArcDesignTokenResource RadiusControl}"
+                            Background="{arc:ArcDesignTokenResource WarningSubtle}"
+                            IsVisible="{Binding HasIssue}">
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <lucide:LucideIcon Kind="TriangleAlert" Size="14"
+                                           Foreground="{arc:ArcDesignTokenResource Warning}"
+                                           VerticalAlignment="Top" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding IssueText}"
+                                   FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                   Foreground="{arc:ArcDesignTokenResource Warning}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2" />
+                      </Grid>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="自动监控"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+                          <TextBlock Text="按巡检间隔检查"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                        </StackPanel>
+                        <arc:Switch Grid.Column="1"
+                                    IsChecked="{Binding IsMonitored, Mode=TwoWay}"
+                                    VerticalAlignment="Center" />
+                      </Grid>
+
+                      <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="自动录制"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+                          <TextBlock Text="开播后开始录制"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                     Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                        </StackPanel>
+                        <arc:Switch Grid.Column="1"
+                                    IsChecked="{Binding AutoRecord, Mode=TwoWay}"
+                                    VerticalAlignment="Center" />
+                      </Grid>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                      <arc:Button Variant="Ghost"
+                                  Size="Small"
+                                  HorizontalAlignment="Left"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenRoomUrlCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="{Binding Url}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <lucide:LucideIcon Kind="ExternalLink" Size="13" />
+                          <TextBlock Text="打开原页面"
+                                     FontSize="{arc:ArcDesignTokenResource TypeXS}" />
+                        </StackPanel>
+                      </arc:Button>
+                      <arc:Button Grid.Column="1"
+                                  Variant="Danger"
+                                  Size="Small"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveRoomCommand}"
+                                  CommandParameter="{Binding}"
+                                  Content="移除" />
+                    </Grid>
+                  </StackPanel>
+                </arc:Card.Content>
+
+                <arc:Card.Action>
+                  <arc:Button Variant="Primary"
+                              Size="Small"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RoomPrimaryActionCommand}"
+                              CommandParameter="{Binding}"
+                              Content="{Binding PrimaryActionText}"
+                              IsLoading="{Binding IsChecking}" />
+                </arc:Card.Action>
+              </arc:Card>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Grid>
+
+      <Border Classes="panel" IsVisible="{Binding HasNoRooms}" Padding="24,40">
+        <arc:EmptyState Title="直播间矩阵还是空的"
+                        Description="支持 B 站、抖音、虎牙、斗鱼、快手、Twitch、YouTube、TikTok、小红书与 CHZZK。">
+          <arc:EmptyState.Action>
+            <arc:Button Variant="Primary"
+                        Command="{Binding AddRoomCommand}"
+                        Content="添加第一个直播间" />
+          </arc:EmptyState.Action>
+        </arc:EmptyState>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

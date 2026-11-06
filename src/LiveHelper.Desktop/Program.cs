@@ -14,6 +14,7 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        EmbeddedRecordingEngine.EnsureReady();
         EnsureNativeRuntime("win-x64", "av_libglesv2.dll", "libonigwrap.dll", "libHarfBuzzSharp.dll", "libSkiaSharp.dll");
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(
             args.Where(argument => !argument.StartsWith("--", StringComparison.Ordinal)).ToArray());
@@ -68,8 +69,9 @@ internal static class Program
             .WithArcFonts()
             .UseArc(arc => arc
                 .UseArcControls()
+                .UseArcBlocks()
                 .WithTheme(theme => theme
-                    .Appearance(ArcAppearance.Light)
+                    .Appearance(ArcAppearance.Dark)
                     .Accent(Color.Parse("#F06435"))
                     .MotionLevel(ArcMotionLevel.Full)))
             .LogToTrace();

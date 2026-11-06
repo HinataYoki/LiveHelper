@@ -36,7 +36,6 @@ public sealed class RecordingManager : IAsyncDisposable
     }
 
     private readonly ConcurrentDictionary<Guid, ActiveRecording> _active = new();
-    private readonly ToolLocator _tools = new();
     private readonly BilibiliDanmakuService _danmaku = new();
     private static readonly HttpClient ThumbnailClient = CreateThumbnailClient();
 
@@ -72,12 +71,6 @@ public sealed class RecordingManager : IAsyncDisposable
                 $"已达到并发录制上限（{settings.MaxConcurrentRecordings}）。");
         }
 
-        var ffmpeg = await _tools.CheckFfmpegAsync(settings, cancellationToken).ConfigureAwait(false);
-        if (!ffmpeg.IsAvailable)
-        {
-            return RecordingStartResult.Failure("未找到 ffmpeg，请在设置中填写可执行文件路径。");
-        }
-
         var startedAt = DateTimeOffset.Now;
         var segmented = settings.SegmentMinutes > 0;
         var desiredPath = segmented
@@ -95,7 +88,7 @@ public sealed class RecordingManager : IAsyncDisposable
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = ToolLocator.Resolve(settings.FfmpegPath, "ffmpeg"),
+            FileName = RecordingEngine.MediaProcessorPath,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardError = true,
@@ -132,13 +125,13 @@ public sealed class RecordingManager : IAsyncDisposable
             if (!process.Start())
             {
                 process.Dispose();
-                return RecordingStartResult.Failure("ffmpeg 进程未能启动。");
+                return RecordingStartResult.Failure("录制引擎未能启动。");
             }
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             process.Dispose();
-            return RecordingStartResult.Failure($"启动 ffmpeg 失败：{ex.Message}");
+            return RecordingStartResult.Failure("录制引擎启动失败，请重新启动 LiveHelper 后再试。");
         }
 
         var active = new ActiveRecording(
@@ -539,6 +532,7 @@ public sealed class RecordingManager : IAsyncDisposable
             error = active.ErrorLog.ToString().Trim();
         }
 
+        error = SanitizeEngineError(error);
         if (error.Length > 600)
         {
             error = error[^600..];
@@ -586,6 +580,11 @@ public sealed class RecordingManager : IAsyncDisposable
                 active.Title));
         }
     }
+
+    private static string SanitizeEngineError(string error) =>
+        error
+            .Replace("ffmpeg", "录制引擎", StringComparison.OrdinalIgnoreCase)
+            .Replace("yt-dlp", "媒体解析", StringComparison.OrdinalIgnoreCase);
 
     private static int SafeExitCode(Process process)
     {

@@ -5,11 +5,12 @@ using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using LiveHelper.Desktop.ViewModels;
+using TKCode.Arc;
 using TKCode.Arc.Icons.Lucide;
 
 namespace LiveHelper.Desktop.Views;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : ArcWindow
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly TrayIcon _trayIcon;
@@ -21,10 +22,10 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        UpdateMaximizeIcon();
         _viewModel = new MainWindowViewModel();
         _viewModel.SetFolderPicker(PickFolderAsync);
         DataContext = _viewModel;
+        SizeChanged += OnWindowSizeChanged;
         Opened += OnOpened;
         Closing += OnClosing;
         _trayIcon = CreateTrayIcon();
@@ -41,7 +42,6 @@ public sealed partial class MainWindow : Window
         base.OnPropertyChanged(change);
         if (change.Property == WindowStateProperty)
         {
-            UpdateMaximizeIcon();
             if (!_startedHidden && WindowState == WindowState.Minimized && IsVisible)
             {
                 HideToTray();
@@ -92,6 +92,9 @@ public sealed partial class MainWindow : Window
             Close();
         }
     }
+
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e) =>
+        _viewModel.UpdateWindowWidth(e.NewSize.Width);
 
     private TrayIcon CreateTrayIcon()
     {
@@ -153,50 +156,6 @@ public sealed partial class MainWindow : Window
     {
         _isQuitting = true;
         Close();
-    }
-
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        if (e.ClickCount == 2)
-        {
-            ToggleMaximize();
-            return;
-        }
-
-        BeginMoveDrag(e);
-    }
-
-    private void OnMinimizeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
-        HideToTray();
-
-    private void OnMaximizeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
-        ToggleMaximize();
-
-    private void OnCloseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
-        HideToTray();
-
-    private void ToggleMaximize()
-    {
-        WindowState = WindowState == Avalonia.Controls.WindowState.Maximized
-            ? Avalonia.Controls.WindowState.Normal
-            : Avalonia.Controls.WindowState.Maximized;
-    }
-
-    private void UpdateMaximizeIcon()
-    {
-        if (MaximizeIcon is null)
-        {
-            return;
-        }
-
-        MaximizeIcon.Kind = WindowState == Avalonia.Controls.WindowState.Maximized
-            ? LucideIconKind.Copy
-            : LucideIconKind.Maximize2;
     }
 
     private async Task<string?> PickFolderAsync()

@@ -11,6 +11,8 @@ namespace LiveHelper.Desktop.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
+    private const double CompactRecordingWidth = 1180;
+
     private enum Page
     {
         Overview,
@@ -24,20 +26,17 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly RecordingManager _recordingManager = new();
     private readonly RecordingConverter _recordingConverter = new();
     private readonly MonitoringService _monitoring;
-    private readonly ToolLocator _toolLocator = new();
     private readonly DispatcherTimer _timer;
     private readonly Dictionary<Guid, bool> _lastLiveStates = [];
     private readonly Dictionary<Guid, string> _lastErrors = [];
     private readonly DateTimeOffset _sessionStartedAt = DateTimeOffset.Now;
+    private double _windowWidth = 1440;
     private PersistedState _state = new();
-    private ToolHealth _ytDlpHealth = ToolHealth.Missing("yt-dlp", "尚未检测");
-    private ToolHealth _ffmpegHealth = ToolHealth.Missing("ffmpeg", "尚未检测");
     private Page _activePage = Page.Overview;
     private bool _initialized;
     private bool _shuttingDown;
     private bool _isMonitoring;
     private bool _isScanning;
-    private bool _isCheckingTools;
     private bool _isAddRoomOpen;
     private DateTimeOffset? _nextScanAt;
     private DateTimeOffset? _lastScanCompletedAt;
@@ -59,8 +58,6 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _monitorIntervalText = "30";
     private string _maxChecksText = "4";
     private string _maxRecordingsText = "3";
-    private string _ytDlpPath = "yt-dlp";
-    private string _ffmpegPath = "ffmpeg";
     private string _proxyUrl = string.Empty;
     private string _quality = "best";
     private string _recordingFormat = AppSettings.DefaultRecordingFormat;
@@ -96,7 +93,6 @@ public sealed class MainWindowViewModel : ObservableObject
         CheckRoomCommand = new RelayCommand(parameter => CheckRoomAsync(parameter as RoomItemViewModel));
         RoomPrimaryActionCommand = new RelayCommand(parameter => RoomPrimaryActionAsync(parameter as RoomItemViewModel));
         OpenRoomUrlCommand = new RelayCommand(parameter => OpenRoomUrl(parameter as RoomItemViewModel));
-        CheckToolsCommand = new RelayCommand(CheckToolsAsync);
         SaveSettingsCommand = new RelayCommand(SaveSettingsAsync);
         OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         PickOutputFolderCommand = new RelayCommand(PickOutputFolderAsync);
@@ -136,8 +132,6 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public RelayCommand OpenRoomUrlCommand { get; }
 
-    public RelayCommand CheckToolsCommand { get; }
-
     public RelayCommand SaveSettingsCommand { get; }
 
     public RelayCommand OpenOutputFolderCommand { get; }
@@ -169,6 +163,33 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool IsSettingsPage => _activePage == Page.Settings;
 
+    public bool ShowsRoomActions => _activePage is Page.Overview or Page.Rooms;
+
+    public bool UsesCompactRecordingLayout => _windowWidth < CompactRecordingWidth;
+
+    public void UpdateWindowWidth(double width)
+    {
+        if (Math.Abs(_windowWidth - width) < 0.5)
+        {
+            return;
+        }
+
+        _windowWidth = width;
+        OnPropertyChanged(nameof(UsesCompactRecordingLayout));
+    }
+
+    public string ActivePageKey
+    {
+        get => _activePage switch
+        {
+            Page.Rooms => "rooms",
+            Page.Recordings => "recordings",
+            Page.Settings => "settings",
+            _ => "overview"
+        };
+        set => Navigate(value);
+    }
+
     public string PageEyebrow => _activePage switch
     {
         Page.Overview => "CONTROL / OVERVIEW",
@@ -189,10 +210,10 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string PageDescription => _activePage switch
     {
-        Page.Overview => "统一查看直播状态、自动录制与本地工具链。",
+        Page.Overview => "统一查看直播状态、自动录制与巡检节奏。",
         Page.Rooms => "管理各平台直播间，以及每个房间的监控和录制策略。",
         Page.Recordings => "已完成的录制文件、时长与占用空间。",
-        Page.Settings => "调整巡检节奏、录制输出和外部工具路径。",
+        Page.Settings => "调整巡检节奏、录制输出与网络连接。",
         _ => string.Empty
     };
 
@@ -215,6 +236,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public string MonitoredRoomText => $"{MonitoredRoomCount}/{Rooms.Count}";
 
     public string RecordingHistoryCountText => Recordings.Count.ToString("00");
+
+    public int RecordingCount => Recordings.Count;
+
+    public double RecordedSizeGb =>
+        Recordings.Sum(item => item.Model.SizeBytes) / 1024d / 1024 / 1024;
 
     public string TotalRecordedSizeText
     {
@@ -317,54 +343,17 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
-    public bool IsCheckingTools => _isCheckingTools;
-
-    public string CheckToolsButtonText => _isCheckingTools ? "检测中" : "重新检测";
-
-    public bool YtDlpAvailable => _ytDlpHealth.IsAvailable;
-
-    public bool FfmpegAvailable => _ffmpegHealth.IsAvailable;
-
-    public bool HasMissingTools => !YtDlpAvailable || !FfmpegAvailable;
-
-    public bool HasToolChainReady => !HasMissingTools;
-
-    public string YtDlpStateText => YtDlpAvailable ? "可用" : "未找到";
-
-    public string FfmpegStateText => FfmpegAvailable ? "可用" : "未找到";
-
-    public string YtDlpDetailText => YtDlpAvailable ? _ytDlpHealth.Version : _ytDlpHealth.Error;
-
-    public string FfmpegDetailText => FfmpegAvailable ? _ffmpegHealth.Version : _ffmpegHealth.Error;
-
-    public IBrush YtDlpBrush => YtDlpAvailable ? Brush("#1C8B63") : Brush("#D94A3A");
-
-    public IBrush FfmpegBrush => FfmpegAvailable ? Brush("#1C8B63") : Brush("#D94A3A");
-
-    public string ToolChainTitle => HasToolChainReady ? "录制工具链已就绪" : "录制工具链需要配置";
-
-    public string MissingToolsText
+    public bool IsAddRoomOpen
     {
-        get
+        get => _isAddRoomOpen;
+        set
         {
-            var missing = new List<string>();
-            if (!YtDlpAvailable)
+            if (SetProperty(ref _isAddRoomOpen, value) && !value)
             {
-                missing.Add("yt-dlp");
+                AddRoomError = string.Empty;
             }
-
-            if (!FfmpegAvailable)
-            {
-                missing.Add("ffmpeg");
-            }
-
-            return missing.Count == 0
-                ? "所有外部工具均已通过检测。"
-                : $"未找到 {string.Join(" 与 ", missing)}。B 站仍可读取开播状态，但无法录制直播流。";
         }
     }
-
-    public bool IsAddRoomOpen => _isAddRoomOpen;
 
     public string NewRoomUrl
     {
@@ -491,18 +480,6 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _maxRecordingsText;
         set => SetProperty(ref _maxRecordingsText, value);
-    }
-
-    public string YtDlpPath
-    {
-        get => _ytDlpPath;
-        set => SetProperty(ref _ytDlpPath, value);
-    }
-
-    public string FfmpegPath
-    {
-        get => _ffmpegPath;
-        set => SetProperty(ref _ffmpegPath, value);
     }
 
     public string ProxyUrl
@@ -680,7 +657,6 @@ public sealed class MainWindowViewModel : ObservableObject
         _monitoring.SetRooms(Rooms.Select(item => item.Model));
         RefreshOverview();
         _timer.Start();
-        await CheckToolsAsync();
 
         if (Settings.StartMonitoringOnLaunch)
         {
@@ -734,6 +710,8 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRoomsPage));
         OnPropertyChanged(nameof(IsRecordingsPage));
         OnPropertyChanged(nameof(IsSettingsPage));
+        OnPropertyChanged(nameof(ShowsRoomActions));
+        OnPropertyChanged(nameof(ActivePageKey));
         OnPropertyChanged(nameof(PageEyebrow));
         OnPropertyChanged(nameof(PageTitle));
         OnPropertyChanged(nameof(PageDescription));
@@ -778,15 +756,12 @@ public sealed class MainWindowViewModel : ObservableObject
     private void OpenAddRoom()
     {
         AddRoomError = string.Empty;
-        _isAddRoomOpen = true;
-        OnPropertyChanged(nameof(IsAddRoomOpen));
+        IsAddRoomOpen = true;
     }
 
     private void CloseAddRoom()
     {
-        _isAddRoomOpen = false;
-        AddRoomError = string.Empty;
-        OnPropertyChanged(nameof(IsAddRoomOpen));
+        IsAddRoomOpen = false;
     }
 
     private async Task ConfirmAddRoomAsync()
@@ -973,39 +948,6 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
-    private async Task CheckToolsAsync()
-    {
-        if (_isCheckingTools)
-        {
-            return;
-        }
-
-        _isCheckingTools = true;
-        NotifyToolProperties();
-        try
-        {
-            var health = await _toolLocator.CheckAllAsync(Settings.Clone());
-            _ytDlpHealth = health.YtDlp;
-            _ffmpegHealth = health.Ffmpeg;
-            AddActivity(
-                HasToolChainReady
-                    ? "yt-dlp 与 ffmpeg 检测通过。"
-                    : MissingToolsText,
-                HasToolChainReady ? ActivityTone.Success : ActivityTone.Warning);
-        }
-        catch (Exception ex)
-        {
-            _ytDlpHealth = ToolHealth.Missing("yt-dlp", ex.Message);
-            _ffmpegHealth = ToolHealth.Missing("ffmpeg", ex.Message);
-            AddActivity($"工具检测失败：{ex.Message}", ActivityTone.Error);
-        }
-        finally
-        {
-            _isCheckingTools = false;
-            NotifyToolProperties();
-        }
-    }
-
     private async Task SaveSettingsAsync()
     {
         if (!int.TryParse(MonitorIntervalText, out var interval)
@@ -1057,8 +999,6 @@ public sealed class MainWindowViewModel : ObservableObject
             StartMonitoringOnLaunch = StartMonitoringOnLaunch,
             PreventSleepWhileMonitoring = PreventSleepWhileMonitoring,
             RecordingEnabled = RecordingEnabled,
-            YtDlpPath = YtDlpPath,
-            FfmpegPath = FfmpegPath,
             ProxyUrl = proxyUrl,
             RecordingFormat = _recordingFormat,
             Quality = Quality,
@@ -1516,8 +1456,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void SetPlatformPreviewBrush(string hex)
     {
-        NewRoomPlatformBrush = Brush(hex);
-        NewRoomPlatformSoftBrush = SoftBrush(hex);
+        NewRoomPlatformBrush = AccentBrushFactory.ForDarkSurface(hex);
+        NewRoomPlatformSoftBrush = AccentBrushFactory.SoftForDarkSurface(hex);
         OnPropertyChanged(nameof(NewRoomPlatformBrush));
         OnPropertyChanged(nameof(NewRoomPlatformSoftBrush));
     }
@@ -1532,8 +1472,6 @@ public sealed class MainWindowViewModel : ObservableObject
         MonitorIntervalText = Settings.MonitorIntervalSeconds.ToString(CultureInfo.InvariantCulture);
         MaxChecksText = Settings.MaxConcurrentChecks.ToString(CultureInfo.InvariantCulture);
         MaxRecordingsText = Settings.MaxConcurrentRecordings.ToString(CultureInfo.InvariantCulture);
-        YtDlpPath = Settings.YtDlpPath;
-        FfmpegPath = Settings.FfmpegPath;
         ProxyUrl = Settings.ProxyUrl;
         Quality = Settings.Quality;
         _recordingFormat = Settings.RecordingFormat;
@@ -1586,6 +1524,8 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(RecordingRoomCountText));
         OnPropertyChanged(nameof(MonitoredRoomText));
         OnPropertyChanged(nameof(RecordingHistoryCountText));
+        OnPropertyChanged(nameof(RecordingCount));
+        OnPropertyChanged(nameof(RecordedSizeGb));
         OnPropertyChanged(nameof(TotalRecordedSizeText));
         OnPropertyChanged(nameof(HasRooms));
         OnPropertyChanged(nameof(HasNoRooms));
@@ -1607,24 +1547,6 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(MonitoringSoftBrush));
         OnPropertyChanged(nameof(NextScanText));
         OnPropertyChanged(nameof(LastScanText));
-    }
-
-    private void NotifyToolProperties()
-    {
-        OnPropertyChanged(nameof(IsCheckingTools));
-        OnPropertyChanged(nameof(CheckToolsButtonText));
-        OnPropertyChanged(nameof(YtDlpAvailable));
-        OnPropertyChanged(nameof(FfmpegAvailable));
-        OnPropertyChanged(nameof(HasMissingTools));
-        OnPropertyChanged(nameof(HasToolChainReady));
-        OnPropertyChanged(nameof(YtDlpStateText));
-        OnPropertyChanged(nameof(FfmpegStateText));
-        OnPropertyChanged(nameof(YtDlpDetailText));
-        OnPropertyChanged(nameof(FfmpegDetailText));
-        OnPropertyChanged(nameof(YtDlpBrush));
-        OnPropertyChanged(nameof(FfmpegBrush));
-        OnPropertyChanged(nameof(ToolChainTitle));
-        OnPropertyChanged(nameof(MissingToolsText));
     }
 
     private void RefreshRoomRelativeTimes()

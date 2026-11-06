@@ -70,7 +70,7 @@ public sealed class LiveProbeService
                 string.IsNullOrWhiteSpace(stream.AnchorName) ? roomState.AnchorName : stream.AnchorName,
                 string.IsNullOrWhiteSpace(stream.ThumbnailUrl) ? roomState.ThumbnailUrl : stream.ThumbnailUrl,
                 roomState.ViewerCount,
-                Warning: "虎牙直播间已开播，但缺少 yt-dlp，暂时只能监控、不能录制。");
+                Warning: "虎牙直播间已开播，但媒体解析暂时不可用，请稍后重试。");
         }
 
         if (!stream.CanRecord)
@@ -82,7 +82,7 @@ public sealed class LiveProbeService
                 string.IsNullOrWhiteSpace(stream.ThumbnailUrl) ? roomState.ThumbnailUrl : stream.ThumbnailUrl,
                 roomState.ViewerCount,
                 Warning: string.IsNullOrWhiteSpace(stream.Error)
-                    ? "直播间已开播，但 yt-dlp 未解析出媒体流。"
+                    ? "直播间已开播，但媒体解析未返回媒体流。"
                     : stream.Error);
         }
 
@@ -109,7 +109,8 @@ public sealed class LiveProbeService
             return result;
         }
 
-        // Short links can also point at ordinary Douyin videos, which yt-dlp handles.
+        // Short links can also point at ordinary Douyin videos handled by the
+        // generic media resolver.
         var fallback = await _ytDlp.ProbeAsync(room.Url, settings, cancellationToken).ConfigureAwait(false);
         return fallback.State == ProbeState.Unavailable
             ? result
@@ -126,7 +127,11 @@ public sealed class LiveProbeService
         {
             metadata = await _bilibili.ProbeMetadataAsync(room.Url, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
         {
             var fallback = await _ytDlp.ProbeAsync(room.Url, settings, cancellationToken).ConfigureAwait(false);
             if (fallback.State != ProbeState.Unavailable)
@@ -135,11 +140,11 @@ public sealed class LiveProbeService
                 {
                     Warning = CombineWarnings(
                         fallback.Warning,
-                        $"B 站元数据接口不可用，已回退到 yt-dlp：{ex.Message}")
+                        "B 站元数据接口暂不可用，已切换到通用媒体解析。")
                 };
             }
 
-            return ProbeResult.Failure($"B 站接口不可用，且未找到 yt-dlp：{ex.Message}");
+            return ProbeResult.Failure("B 站接口暂不可用，通用媒体解析也未能获取媒体流。");
         }
 
         if (!metadata.IsLive)
@@ -152,7 +157,7 @@ public sealed class LiveProbeService
         {
             return metadata with
             {
-                Warning = "检测到 B 站直播间正在开播，但缺少 yt-dlp，暂时只能监控、不能录制。"
+                Warning = "检测到 B 站直播间正在开播，但媒体解析暂时不可用，请稍后重试。"
             };
         }
 
@@ -177,7 +182,7 @@ public sealed class LiveProbeService
         return metadata with
         {
             Warning = CombineWarnings(
-                "直播间正在开播，但 yt-dlp 未能解析出媒体流。",
+                "直播间正在开播，但媒体解析未能获得媒体流。",
                 stream.Error,
                 stream.Warning)
         };

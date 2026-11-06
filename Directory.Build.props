@@ -4,8 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <AvaloniaVersion>12.1.4</AvaloniaVersion>
-    <ArcVersion>0.3.2-preview.2</ArcVersion>
+    <ArcVersion>0.4.0-preview.2</ArcVersion>
   </PropertyGroup>
 </Project>

@@ -1,0 +1,269 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:arc="https://github.com/AIDotNet/TKCode.Arc"
+             xmlns:lucide="https://github.com/AIDotNet/TKCode.Arc/lucide"
+             xmlns:vm="clr-namespace:LiveHelper.Desktop.ViewModels"
+             x:Class="LiveHelper.Desktop.Views.Pages.PreferencesPage"
+             x:DataType="vm:MainWindowViewModel"
+             x:CompileBindings="True">
+  <UserControl.Styles>
+    <Style Selector="arc|SettingsRow">
+      <Setter Property="StackWidth" Value="620" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Margin="28,22,28,26" RowDefinitions="*,Auto" RowSpacing="12">
+    <arc:SettingsPage Grid.Row="0"
+                      Title="偏好设置"
+                      SelectedIndex="0"
+                      CompactWidth="620">
+      <arc:SettingsSection Header="工作区"
+                           Icon="{x:Static arc:ArcIcons.Folder}"
+                           Description="录制目录、配置文件和命名规则。">
+        <StackPanel Spacing="22">
+          <arc:SettingsGroup Appearance="Plain">
+            <arc:SettingsRow Header="录制输出目录"
+                             Description="配置、房间列表和录制文件会跟随这个目录移动。">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Width="460">
+                <arc:Input Text="{Binding OutputDirectory, Mode=TwoWay}"
+                           Placeholder="例如 D:\LiveRecordings"
+                           HorizontalAlignment="Stretch" />
+                <arc:Button Grid.Column="1"
+                            Variant="Secondary"
+                            Command="{Binding PickOutputFolderCommand}"
+                            Content="选择" />
+                <arc:Button Grid.Column="2"
+                            Variant="Ghost"
+                            Command="{Binding OpenOutputFolderCommand}"
+                            Content="打开" />
+              </Grid>
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="工作区状态"
+                             Description="{Binding WorkspaceModeText}">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Width="460">
+                <TextBlock Text="{Binding WorkspaceConfigPath}"
+                           FontFamily="Geist Mono, Consolas"
+                           FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                           Foreground="{arc:ArcDesignTokenResource TextSecondary}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
+                <arc:Button Grid.Column="1"
+                            Variant="Secondary"
+                            Command="{Binding ReloadWorkspaceCommand}"
+                            Content="载入配置" />
+              </Grid>
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="文件夹模板"
+                             Description="可用 {platform}、{roomId}、{roomName}、{anchor}">
+              <arc:Input Text="{Binding FolderTemplate, Mode=TwoWay}"
+                         Width="460"
+                         HorizontalAlignment="Stretch" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="文件名模板"
+                             Description="可用 {date}、{time}、{title}、{anchor}">
+              <arc:Input Text="{Binding FileNameTemplate, Mode=TwoWay}"
+                         Width="460"
+                         HorizontalAlignment="Stretch" />
+            </arc:SettingsRow>
+          </arc:SettingsGroup>
+
+          <arc:SettingsGroup Header="命名预览" Appearance="Plain">
+            <Border Background="{arc:ArcDesignTokenResource SurfaceMuted}"
+                    BorderBrush="{arc:ArcDesignTokenResource BorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="{arc:ArcDesignTokenResource RadiusControl}"
+                    Padding="14,11">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                <lucide:LucideIcon Kind="FolderTree" Size="15"
+                                   Foreground="{arc:ArcDesignTokenResource Accent}"
+                                   VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="{Binding TemplatePreviewFolder}"
+                             FontFamily="Geist Mono, Consolas"
+                             FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                             Foreground="{arc:ArcDesignTokenResource Foreground}" />
+                  <TextBlock Text="{Binding TemplatePreviewFileName}"
+                             FontFamily="Geist Mono, Consolas"
+                             FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                             Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                </StackPanel>
+                <TextBlock Grid.Column="3"
+                           Text="保存后生效"
+                           FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                           Foreground="{arc:ArcDesignTokenResource TextMuted}"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </arc:SettingsGroup>
+        </StackPanel>
+      </arc:SettingsSection>
+
+      <arc:SettingsSection Header="巡检"
+                           Icon="{x:Static arc:ArcIcons.Activity}"
+                           Description="控制检查节奏、并发和启动行为。">
+        <StackPanel Spacing="22">
+          <arc:SettingsGroup Appearance="Plain">
+            <arc:SettingsRow Header="巡检间隔与并发"
+                             Description="抖音最低按 90 秒巡检，检查失败会自动退避。">
+              <Grid ColumnDefinitions="120,120,120" ColumnSpacing="10">
+                <arc:Input Label="间隔（秒）"
+                           Text="{Binding MonitorIntervalText, Mode=TwoWay}" />
+                <arc:Input Grid.Column="1"
+                           Label="检查并发"
+                           Text="{Binding MaxChecksText, Mode=TwoWay}" />
+                <arc:Input Grid.Column="2"
+                           Label="录制并发"
+                           Text="{Binding MaxRecordingsText, Mode=TwoWay}" />
+              </Grid>
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="启动时自动巡检"
+                             Description="打开 LiveHelper 后立即开始检查监控房间。">
+              <arc:Switch IsChecked="{Binding StartMonitoringOnLaunch, Mode=TwoWay}" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="{Binding StartupSettingLabel}"
+                             Description="登录系统后自动启动 LiveHelper。">
+              <arc:Switch IsChecked="{Binding LaunchAtStartup, Mode=TwoWay}" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="启动后隐藏到托盘/菜单栏"
+                             Description="保留后台巡检，不弹出主窗口。">
+              <arc:Switch IsChecked="{Binding StartMinimized, Mode=TwoWay}" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="巡检期间阻止系统休眠"
+                             Description="仅在 macOS 上生效。"
+                             IsVisible="{Binding IsMacOS}">
+              <arc:Switch IsChecked="{Binding PreventSleepWhileMonitoring, Mode=TwoWay}" />
+            </arc:SettingsRow>
+          </arc:SettingsGroup>
+
+          <arc:SettingsGroup Header="巡检状态" Appearance="Plain">
+            <Border Background="{arc:ArcDesignTokenResource SurfaceMuted}"
+                    CornerRadius="{arc:ArcDesignTokenResource RadiusControl}"
+                    Padding="14,11">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <Border Width="8" Height="8" CornerRadius="4"
+                        Background="{Binding MonitoringBrush}"
+                        VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding MonitoringStatusText}"
+                           FontSize="{arc:ArcDesignTokenResource TypeSM}"
+                           Foreground="{arc:ArcDesignTokenResource Foreground}" />
+                <TextBlock Grid.Column="2"
+                           Text="{Binding NextScanText}"
+                           FontFamily="Geist Mono, Consolas"
+                           FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                           Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+              </Grid>
+            </Border>
+          </arc:SettingsGroup>
+        </StackPanel>
+      </arc:SettingsSection>
+
+      <arc:SettingsSection Header="录制"
+                           Icon="{x:Static arc:ArcIcons.Monitor}"
+                           Description="设置自动录制、容器格式和附加文件。">
+        <StackPanel Spacing="22">
+          <arc:SettingsGroup Appearance="Plain">
+            <arc:SettingsRow Header="自动开始录制"
+                             Description="检测到开播且获得媒体流后开始录制。">
+              <arc:Switch IsChecked="{Binding RecordingEnabled, Mode=TwoWay}" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="录制格式"
+                             Description="{Binding RecordingStrategyHint}">
+              <arc:Select ItemsSource="{Binding RecordingFormats}"
+                          SelectedItem="{Binding SelectedRecordingFormat, Mode=TwoWay}"
+                          Width="180" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="画质格式"
+                             Description="媒体解析优先使用的画质格式；best 会自动选择最佳兼容流。">
+              <arc:Input Text="{Binding Quality, Mode=TwoWay}"
+                         Width="240" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="分段时长"
+                             Description="{Binding SegmentSummaryText}">
+              <arc:Input Text="{Binding SegmentMinutesText, Mode=TwoWay}"
+                         Placeholder="0"
+                         Width="160" />
+            </arc:SettingsRow>
+          </arc:SettingsGroup>
+
+          <arc:SettingsGroup Header="附加内容" Appearance="Plain">
+            <arc:SettingsRow Header="保存直播封面"
+                             Description="将开播封面保存到录制目录。">
+              <arc:Switch IsChecked="{Binding SaveThumbnail, Mode=TwoWay}" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="保存弹幕"
+                             Description="仅 B 站；按行记录时间、昵称与内容。">
+              <arc:Switch IsChecked="{Binding SaveDanmaku, Mode=TwoWay}" />
+            </arc:SettingsRow>
+          </arc:SettingsGroup>
+        </StackPanel>
+      </arc:SettingsSection>
+
+      <arc:SettingsSection Header="网络与运行"
+                           Icon="{x:Static arc:ArcIcons.Server}"
+                           Description="统一设置直播探测与媒体解析的连接方式。">
+        <StackPanel Spacing="22">
+          <arc:SettingsGroup Appearance="Plain">
+            <arc:SettingsRow Header="代理 URL"
+                             Description="留空时所有探测直连；填写后直播探测、媒体解析和录制共用此代理。">
+              <arc:Input Text="{Binding ProxyUrl, Mode=TwoWay}"
+                         Placeholder="http://127.0.0.1:7890"
+                         Width="380" />
+            </arc:SettingsRow>
+
+            <arc:SettingsRow Header="录制引擎"
+                             Description="已随应用打包，启动时自动准备，无需配置路径。">
+              <TextBlock Text="内置运行"
+                         FontFamily="Geist Mono, Consolas"
+                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                         FontWeight="SemiBold"
+                         Foreground="{arc:ArcDesignTokenResource Success}" />
+            </arc:SettingsRow>
+          </arc:SettingsGroup>
+
+          <arc:SettingsGroup Header="连接说明" Appearance="Plain">
+            <TextBlock Text="抖音、B 站和虎牙的内置解析也会使用代理设置。系统代理不会被自动继承，避免国内直播页被代理风控拦截。"
+                       FontSize="{arc:ArcDesignTokenResource TypeSM}"
+                       Foreground="{arc:ArcDesignTokenResource TextSecondary}"
+                       TextWrapping="Wrap"
+                       Margin="2,4" />
+          </arc:SettingsGroup>
+        </StackPanel>
+      </arc:SettingsSection>
+    </arc:SettingsPage>
+
+    <Border Grid.Row="1" Classes="panel panel-compact">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+        <lucide:LucideIcon Kind="CheckCircle2" Size="15"
+                           Foreground="{arc:ArcDesignTokenResource TextMuted}"
+                           VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="{Binding SettingsFeedback}"
+                     IsVisible="{Binding HasSettingsFeedback}"
+                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                     FontWeight="SemiBold"
+                     Foreground="{Binding SettingsFeedbackBrush}" />
+          <TextBlock Text="保存时会创建或更新工作区配置，并在目录变化后重新启动巡检。"
+                     IsVisible="{Binding !HasSettingsFeedback}"
+                     FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                     Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+        </StackPanel>
+        <arc:Badge Grid.Column="2"
+                   Content="{Binding WorkspaceModeText}"
+                   Tone="Neutral"
+                   Size="Small" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

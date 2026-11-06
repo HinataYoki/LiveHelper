@@ -1,0 +1,262 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:arc="https://github.com/AIDotNet/TKCode.Arc"
+             xmlns:lucide="https://github.com/AIDotNet/TKCode.Arc/lucide"
+             xmlns:vm="clr-namespace:LiveHelper.Desktop.ViewModels"
+             x:Class="LiveHelper.Desktop.Views.Pages.RecordingsPage"
+             x:DataType="vm:MainWindowViewModel"
+             x:CompileBindings="True">
+  <Grid Margin="28,22,28,34"
+        RowDefinitions="Auto,Auto,*"
+        RowSpacing="16">
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+        <arc:MetricCard Grid.Column="0"
+                        Label="录制文件"
+                        Value="{Binding RecordingCount}"
+                        Context="本地历史记录" />
+        <arc:MetricCard Grid.Column="1"
+                        Label="档案占用"
+                        Value="{Binding RecordedSizeGb}"
+                        Decimals="1"
+                        Suffix=" GB"
+                        Context="录制文件总大小" />
+        <arc:MetricCard Grid.Column="2"
+                        Label="正在录制"
+                        Value="{Binding RecordingRoomCount}"
+                        Context="并发录制任务" />
+        <arc:MetricCard Grid.Column="3"
+                        Label="监控房间"
+                        Value="{Binding RoomCount}"
+                        Context="{Binding MonitoredRoomText, StringFormat='{}{0} 已启用'}" />
+      </Grid>
+
+      <Border Grid.Row="1" Classes="panel panel-compact">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+          <Border Width="38" Height="38"
+                  CornerRadius="{arc:ArcDesignTokenResource RadiusControl}"
+                  Background="{arc:ArcDesignTokenResource AccentSubtle}">
+            <lucide:LucideIcon Kind="FolderOpen" Size="17"
+                               Foreground="{arc:ArcDesignTokenResource Accent}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+          </Border>
+          <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+            <TextBlock Classes="micro-label" Text="录制输出目录" />
+            <TextBlock Text="{Binding Settings.OutputDirectory}"
+                       FontFamily="Geist Mono, Consolas"
+                       FontSize="{arc:ArcDesignTokenResource TypeSM}"
+                       Foreground="{arc:ArcDesignTokenResource Foreground}"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <arc:Button Grid.Column="2"
+                      Variant="Secondary"
+                      Command="{Binding OpenOutputFolderCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <lucide:LucideIcon Kind="FolderOpen" Size="14" />
+              <TextBlock Text="打开目录" FontSize="{arc:ArcDesignTokenResource TypeXS}" />
+            </StackPanel>
+          </arc:Button>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="2" Classes="panel table-panel">
+        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="section-title" Text="录制档案" />
+              <TextBlock Text="完成录制后会自动写入历史；FLV、TS 与 MKV 可在此转换 MP4。"
+                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                         Foreground="{arc:ArcDesignTokenResource TextSecondary}" />
+            </StackPanel>
+            <arc:Badge Grid.Column="1"
+                       Content="{Binding RecordingHistoryCountText}"
+                       Tone="Neutral"
+                       Size="Small"
+                       VerticalAlignment="Top" />
+          </Grid>
+
+          <Grid Grid.Row="1">
+            <arc:Table ItemsSource="{Binding Recordings}"
+                       Caption="录制档案"
+                       ItemNameOne="个录制文件"
+                       ItemNameOther="个录制文件"
+                       EmptyMessage="还没有录制文件。直播间开播且自动录制开启后，完成的文件会出现在这里。"
+                       IsVisible="{Binding !UsesCompactRecordingLayout}">
+            <arc:Table.Columns>
+              <arc:DataTableColumn Header="文件名"
+                                   Binding="{Binding FileName}"
+                                   Width="2*" />
+              <arc:DataTableColumn Header="直播间"
+                                   Binding="{Binding RoomName}"
+                                   Width="1.1*" />
+              <arc:DataTableColumn Header="平台"
+                                   Binding="{Binding PlatformName}"
+                                   Width="0.8*" />
+              <arc:DataTableColumn Header="开始时间"
+                                   Binding="{Binding StartedText}"
+                                   Width="0.9*" />
+              <arc:DataTableColumn Header="时长"
+                                   Binding="{Binding DurationText}"
+                                   Width="0.7*" />
+              <arc:DataTableColumn Header="大小"
+                                   Binding="{Binding SizeText}"
+                                   Width="0.7*" />
+              <arc:DataTableColumn Header="操作"
+                                   IsSortable="False"
+                                   IsNumeric="False"
+                                   Width="132">
+                <arc:DataTableColumn.CellTemplate>
+                  <DataTemplate DataType="vm:RecordingItemViewModel" x:CompileBindings="True">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                      <arc:Button Variant="Secondary"
+                                  Size="Small"
+                                  Width="32"
+                                  Height="32"
+                                  Padding="0"
+                                  IsVisible="{Binding SupportsMp4Conversion}"
+                                  IsEnabled="{Binding CanConvertToMp4}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConvertRecordingCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="{Binding ConversionButtonText}"
+                                  AutomationProperties.Name="{Binding ConversionButtonText}">
+                        <lucide:LucideIcon Kind="Video" Size="14" />
+                      </arc:Button>
+                      <arc:Button Variant="Secondary"
+                                  Size="Small"
+                                  Width="32"
+                                  Height="32"
+                                  Padding="0"
+                                  IsVisible="{Binding HasConvertedMp4}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenConvertedRecordingCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="打开 MP4"
+                                  AutomationProperties.Name="打开 MP4">
+                        <lucide:LucideIcon Kind="Play" Size="14" />
+                      </arc:Button>
+                      <arc:Button Variant="Ghost"
+                                  Size="Small"
+                                  Width="32"
+                                  Height="32"
+                                  Padding="0"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenRecordingFolderCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="在文件夹中显示"
+                                  AutomationProperties.Name="在文件夹中显示">
+                        <lucide:LucideIcon Kind="FolderOpen" Size="14" />
+                      </arc:Button>
+                    </StackPanel>
+                  </DataTemplate>
+                </arc:DataTableColumn.CellTemplate>
+              </arc:DataTableColumn>
+            </arc:Table.Columns>
+            </arc:Table>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding UsesCompactRecordingLayout}">
+              <StackPanel Spacing="6">
+                <ItemsControl ItemsSource="{Binding Recordings}"
+                              IsVisible="{Binding HasRecordings}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:RecordingItemViewModel" x:CompileBindings="True">
+                      <Border Padding="2,11"
+                              BorderBrush="{arc:ArcDesignTokenResource BorderSubtle}"
+                              BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                          <StackPanel Spacing="5">
+                            <TextBlock Text="{Binding FileName}"
+                                       ToolTip.Tip="{Binding FilePath}"
+                                       FontSize="{arc:ArcDesignTokenResource TypeSM}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{arc:ArcDesignTokenResource Foreground}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                              <TextBlock Text="{Binding PlatformName}"
+                                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource Accent}" />
+                              <TextBlock Text="·"
+                                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                              <TextBlock Text="{Binding RoomName}"
+                                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextSecondary}"
+                                         TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="·"
+                                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                              <TextBlock Text="{Binding StartedText}"
+                                         FontFamily="Geist Mono, Consolas"
+                                         FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextMuted}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                              <TextBlock FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextMuted}">
+                                <Run Text="时长 " />
+                                <Run Text="{Binding DurationText}" />
+                              </TextBlock>
+                              <TextBlock FontSize="{arc:ArcDesignTokenResource TypeXS}"
+                                         Foreground="{arc:ArcDesignTokenResource TextMuted}">
+                                <Run Text="大小 " />
+                                <Run Text="{Binding SizeText}" />
+                              </TextBlock>
+                            </StackPanel>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="1"
+                                      Orientation="Horizontal"
+                                      Spacing="4"
+                                      VerticalAlignment="Center">
+                            <arc:Button Variant="Secondary"
+                                        Size="Small"
+                                        Width="32"
+                                        Height="32"
+                                        Padding="0"
+                                        IsVisible="{Binding SupportsMp4Conversion}"
+                                        IsEnabled="{Binding CanConvertToMp4}"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConvertRecordingCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="{Binding ConversionButtonText}"
+                                        AutomationProperties.Name="{Binding ConversionButtonText}">
+                              <lucide:LucideIcon Kind="Video" Size="14" />
+                            </arc:Button>
+                            <arc:Button Variant="Secondary"
+                                        Size="Small"
+                                        Width="32"
+                                        Height="32"
+                                        Padding="0"
+                                        IsVisible="{Binding HasConvertedMp4}"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenConvertedRecordingCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="打开 MP4"
+                                        AutomationProperties.Name="打开 MP4">
+                              <lucide:LucideIcon Kind="Play" Size="14" />
+                            </arc:Button>
+                            <arc:Button Variant="Ghost"
+                                        Size="Small"
+                                        Width="32"
+                                        Height="32"
+                                        Padding="0"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenRecordingFolderCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="在文件夹中显示"
+                                        AutomationProperties.Name="文件夹中显示">
+                              <lucide:LucideIcon Kind="FolderOpen" Size="14" />
+                            </arc:Button>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <arc:EmptyState Title="还没有录制文件"
+                                Description="直播间开播且自动录制开启后，完成的文件会出现在这里。"
+                                IsVisible="{Binding HasNoRecordings}" />
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+      </Border>
+  </Grid>
+</UserControl>

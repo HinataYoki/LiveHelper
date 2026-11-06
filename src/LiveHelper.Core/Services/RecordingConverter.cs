@@ -42,7 +42,7 @@ public sealed class RecordingConverter
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = ToolLocator.Resolve(settings.FfmpegPath, "ffmpeg"),
+                FileName = RecordingEngine.MediaProcessorPath,
                 UseShellExecute = false,
                 RedirectStandardError = true,
                 CreateNoWindow = true
@@ -75,13 +75,14 @@ public sealed class RecordingConverter
             {
                 if (!process.Start())
                 {
-                    return RecordingConversionResult.Failure("ffmpeg 未能启动。");
+                    return RecordingConversionResult.Failure("媒体处理引擎未能启动。");
                 }
             }
             catch (Exception ex) when (
                 ex is System.ComponentModel.Win32Exception or InvalidOperationException)
             {
-                return RecordingConversionResult.Failure($"启动 ffmpeg 失败：{ex.Message}");
+                return RecordingConversionResult.Failure(
+                    "媒体处理引擎启动失败，请重新启动 LiveHelper 后再试。");
             }
 
             process.BeginErrorReadLine();
@@ -169,6 +170,9 @@ public sealed class RecordingConverter
                 error = error[^1_200..];
             }
 
+            error = error
+                .Replace("ffmpeg", "媒体处理引擎", StringComparison.OrdinalIgnoreCase)
+                .Replace("yt-dlp", "媒体解析", StringComparison.OrdinalIgnoreCase);
             return string.IsNullOrWhiteSpace(error) ? fallback : error;
         }
     }

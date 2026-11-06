@@ -28,10 +28,6 @@ public sealed class AppSettings
 
     public bool RecordingEnabled { get; set; } = true;
 
-    public string YtDlpPath { get; set; } = "yt-dlp";
-
-    public string FfmpegPath { get; set; } = "ffmpeg";
-
     public string ProxyUrl { get; set; } = string.Empty;
 
     public string RecordingFormat { get; set; } = DefaultRecordingFormat;
@@ -67,8 +63,6 @@ public sealed class AppSettings
         RecordingFormat = NormalizeRecordingFormat(RecordingFormat);
         Quality = string.IsNullOrWhiteSpace(Quality) ? "best" : Quality.Trim();
         SegmentMinutes = Math.Clamp(SegmentMinutes, 0, 1440);
-        YtDlpPath = string.IsNullOrWhiteSpace(YtDlpPath) ? "yt-dlp" : YtDlpPath.Trim();
-        FfmpegPath = string.IsNullOrWhiteSpace(FfmpegPath) ? "ffmpeg" : FfmpegPath.Trim();
         ProxyUrl = NormalizeProxyUrl(ProxyUrl);
     }
 

@@ -30,9 +30,9 @@ public sealed class RoomItemViewModel : ObservableObject
 
     public string PlatformHint => Descriptor.Hint;
 
-    public IBrush PlatformBrush => Brush(Descriptor.AccentHex);
+    public IBrush PlatformBrush => AccentBrushFactory.ForDarkSurface(Descriptor.AccentHex);
 
-    public IBrush PlatformSoftBrush => SoftBrush(Descriptor.AccentHex);
+    public IBrush PlatformSoftBrush => AccentBrushFactory.SoftForDarkSurface(Descriptor.AccentHex);
 
     public string DisplayName => Model.EffectiveName;
 
@@ -118,6 +118,8 @@ public sealed class RoomItemViewModel : ObservableObject
     public bool HasStaleState =>
         Model.ConsecutiveFailures > 0 && !string.IsNullOrWhiteSpace(Model.LastError);
 
+    public string SignalToolTip => $"{DisplayName} · {StatusText}";
+
     public string IssueText =>
         !string.IsNullOrWhiteSpace(Model.LastError)
             ? Model.LastError
@@ -190,7 +192,7 @@ public sealed class RoomItemViewModel : ObservableObject
                 return BadgeTone.Neutral;
             }
 
-            return BadgeTone.Info;
+            return BadgeTone.Neutral;
         }
     }
 
@@ -261,6 +263,9 @@ public sealed class RoomItemViewModel : ObservableObject
         }
     }
 
+    public string RecordingDurationDisplayText =>
+        _isRecording ? RecordingDurationText : "未录制";
+
     public string PrimaryActionText => _isRecording
         ? "停止录制"
         : _isChecking
@@ -280,11 +285,13 @@ public sealed class RoomItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRecording));
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(SignalToolTip));
         OnPropertyChanged(nameof(StatusTone));
         OnPropertyChanged(nameof(StatusBrush));
         OnPropertyChanged(nameof(StatusSoftBrush));
         OnPropertyChanged(nameof(PrimaryActionText));
         OnPropertyChanged(nameof(RecordingDurationText));
+        OnPropertyChanged(nameof(RecordingDurationDisplayText));
     }
 
     public void SetChecking(bool isChecking)
@@ -293,6 +300,7 @@ public sealed class RoomItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsChecking));
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(SignalToolTip));
         OnPropertyChanged(nameof(PrimaryActionText));
     }
 
@@ -319,6 +327,7 @@ public sealed class RoomItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(HasIssue));
         OnPropertyChanged(nameof(HasStaleState));
+        OnPropertyChanged(nameof(SignalToolTip));
         OnPropertyChanged(nameof(IssueText));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(StatusTone));
@@ -327,6 +336,7 @@ public sealed class RoomItemViewModel : ObservableObject
         OnPropertyChanged(nameof(ViewerText));
         OnPropertyChanged(nameof(LastCheckedText));
         OnPropertyChanged(nameof(RecordingDurationText));
+        OnPropertyChanged(nameof(RecordingDurationDisplayText));
         OnPropertyChanged(nameof(PrimaryActionText));
         OnPropertyChanged(nameof(LastRecordingPath));
     }

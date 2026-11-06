@@ -21,7 +21,7 @@ jobs:
         run: bash -n .github/scripts/package-macos.sh
 
   windows:
-    name: Windows AOT
+    name: Windows Self-contained
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,15 +40,12 @@ jobs:
           }
           if (-not $version -or $version -eq "refs/heads/main") { $version = "dev" }
           dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj `
-            -c Release -r win-x64 -p:PublishAot=true -p:PublishSingleFile=true `
+            -c Release -r win-x64 -p:PublishAot=false -p:PublishSingleFile=true -p:PublishTrimmed=false `
             -p:DebugSymbols=false -p:DebugType=None `
             --self-contained true -o out/win-x64
-          New-Item -ItemType Directory -Force -Path dist/LiveHelper/tools | Out-Null
+          New-Item -ItemType Directory -Force -Path dist/LiveHelper | Out-Null
           Copy-Item out/win-x64/LiveHelper.exe dist/LiveHelper/
-          Copy-Item build/ffmpeg/ffmpeg.exe dist/LiveHelper/tools/
-          Copy-Item build/ffmpeg/FFmpeg-COPYING.GPLv2.txt dist/LiveHelper/tools/
-          Copy-Item build/ffmpeg/x264-COPYING.txt dist/LiveHelper/tools/
-          Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile "dist/LiveHelper/tools/yt-dlp.exe"
+          Copy-Item out/win-x64/*.dll dist/LiveHelper/
           cd dist
           Compress-Archive -Path LiveHelper -DestinationPath "../LiveHelper-win-x64.zip" -Force
           cd ..
@@ -60,7 +57,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: macOS AOT
+    name: macOS Self-contained
     env:
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -103,53 +100,9 @@ jobs:
           echo "OUTPUT_DIR=out/$rid" >> "$GITHUB_ENV"
           echo "PACKAGE_NAME=dist/LiveHelper-$artifact_rid.zip" >> "$GITHUB_ENV"
           dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj \
-            -c Release -r "$rid" -p:PublishAot=true -p:PublishSingleFile=true \
+            -c Release -r "$rid" -p:PublishAot=false -p:PublishSingleFile=true -p:PublishTrimmed=false \
             -p:DebugSymbols=false -p:DebugType=None \
             --self-contained true -o "out/$rid"
-      - name: Bundle recording tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          tools_dir="$OUTPUT_DIR/tools"
-          mkdir -p "$tools_dir"
-
-          ytdlp_tag=$(curl -fsSL https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest \
-            | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p' \
-            | head -n 1)
-          if [[ -z "$ytdlp_tag" ]]; then
-            echo "Unable to resolve the latest yt-dlp release" >&2
-            exit 1
-          fi
-
-          curl -fsSL --retry 3 -o "$tools_dir/yt-dlp" \
-            "https://github.com/yt-dlp/yt-dlp/releases/download/$ytdlp_tag/yt-dlp_macos"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/yt-dlp-checksums.txt" \
-            "https://github.com/yt-dlp/yt-dlp/releases/download/$ytdlp_tag/SHA2-256SUMS"
-          expected=$(awk '$2=="yt-dlp_macos" {print $1}' "$RUNNER_TEMP/yt-dlp-checksums.txt")
-          actual=$(shasum -a 256 "$tools_dir/yt-dlp" | awk '{print $1}')
-          if [[ -z "$expected" || "$expected" != "$actual" ]]; then
-            echo "yt-dlp checksum verification failed" >&2
-            exit 1
-          fi
-
-          if [[ "$ARTIFACT_RID" == *arm64 ]]; then
-            ffmpeg_arch=arm64
-          else
-            ffmpeg_arch=x64
-          fi
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/ffmpeg.gz" \
-            "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-$ffmpeg_arch.gz"
-          gzip -t "$RUNNER_TEMP/ffmpeg.gz"
-          gzip -dc "$RUNNER_TEMP/ffmpeg.gz" > "$tools_dir/ffmpeg"
-          chmod 755 "$tools_dir/yt-dlp" "$tools_dir/ffmpeg"
-
-          curl -fsSL --retry 3 -o "$tools_dir/FFMPEG-LICENSE.txt" \
-            "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/darwin-$ffmpeg_arch.LICENSE"
-          curl -fsSL --retry 3 -o "$tools_dir/YT-DLP-LICENSE.txt" \
-            "https://raw.githubusercontent.com/yt-dlp/yt-dlp/$ytdlp_tag/LICENSE"
-
-          "$tools_dir/yt-dlp" --version
-          "$tools_dir/ffmpeg" -hide_banner -version | head -n 1
       - name: Package
         shell: bash
         run: |
@@ -170,7 +123,7 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux AOT
+    name: Linux Self-contained
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -186,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           dotnet publish src/LiveHelper.Desktop/LiveHelper.Desktop.csproj \
-            -c Release -r linux-x64 -p:PublishAot=true -p:PublishSingleFile=true \
+            -c Release -r linux-x64 -p:PublishAot=false -p:PublishSingleFile=true -p:PublishTrimmed=false \
             -p:DebugSymbols=false -p:DebugType=None \
             --self-contained true -o out/linux-x64
       - name: Package
@@ -195,6 +148,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/LiveHelper
           cp out/linux-x64/LiveHelper dist/LiveHelper/
+          cp out/linux-x64/*.so dist/LiveHelper/
           chmod +x dist/LiveHelper/LiveHelper
           cd dist
           zip -r ../LiveHelper-linux-x64.zip LiveHelper
@@ -231,9 +185,9 @@ jobs:
           body: |
             ## 安装
 
-            - Windows：解压后运行 `LiveHelper.exe`，`tools` 目录已内置 ffmpeg 和 yt-dlp。
-            - macOS：解压后把 `LiveHelper.app` 拖进“应用程序”，应用内已内置 ffmpeg 和 yt-dlp。未签名包会触发 Gatekeeper 拦截，请在 Finder 中右键应用，选择“打开”；也可以到“系统设置 → 隐私与安全性”中点击“仍要打开”。仅在确认来源为本仓库 Release 时继续。
-            - Linux：解压后运行 `LiveHelper`，需预先安装 ffmpeg 和 yt-dlp。
+            - Windows：解压后直接运行 `LiveHelper.exe`，录制引擎已内置。
+            - macOS：解压后把 `LiveHelper.app` 拖进“应用程序”，录制引擎已内置。未签名包会触发 Gatekeeper 拦截，请在 Finder 中右键应用，选择“打开”；也可以到“系统设置 → 隐私与安全性”中点击“仍要打开”。仅在确认来源为本仓库 Release 时继续。
+            - Linux：解压后直接运行 `LiveHelper`，录制引擎已内置。
 
             仅在 CI 配置了 macOS Developer ID 证书与公证凭据时，macOS 包才会完成签名和公证；否则资产名会带 `-unsigned`。
           files: release-assets/*.zip

@@ -45,26 +45,19 @@ public sealed class YtDlpProbeService
         arguments.Add(url);
 
         var result = await ProcessRunner.RunAsync(
-            ToolLocator.Resolve(settings.YtDlpPath, "yt-dlp"),
+            RecordingEngine.MediaResolverPath,
             arguments,
             TimeSpan.FromSeconds(45),
             cancellationToken).ConfigureAwait(false);
 
         if (result.TimedOut)
         {
-            return ProbeResult.Failure("yt-dlp 解析超时，请检查网络或代理设置。");
+            return ProbeResult.Failure("媒体解析超时，请检查网络或代理设置。");
         }
 
         if (!result.Succeeded)
         {
-            var error = FirstMeaningfulLine(result.StandardError);
-            var missing = error.Contains("not found", StringComparison.OrdinalIgnoreCase)
-                          || error.Contains("找不到", StringComparison.OrdinalIgnoreCase)
-                          || error.Contains("系统找不到", StringComparison.OrdinalIgnoreCase)
-                          || error.Contains("cannot find", StringComparison.OrdinalIgnoreCase);
-            return missing
-                ? ProbeResult.Missing("未找到 yt-dlp，请在设置中填写可执行文件路径。")
-                : ProbeResult.Failure(string.IsNullOrWhiteSpace(error) ? "yt-dlp 解析失败。" : error);
+            return ProbeResult.Failure("媒体解析暂时失败，请稍后重试。");
         }
 
         return ParseJson(result.StandardOutput, settings.Quality);
@@ -105,8 +98,8 @@ public sealed class YtDlpProbeService
                     stream.Url,
                     stream.Headers,
                     Warning: string.IsNullOrWhiteSpace(stream.Url)
-                        ? "yt-dlp 未返回明确的开播状态，也未返回媒体流。"
-                        : "yt-dlp 未返回明确的开播状态，已按页面存在媒体流判断。",
+                        ? "媒体解析未返回明确的开播状态，也未返回媒体流。"
+                        : "媒体解析未返回明确的开播状态，已按页面存在媒体流判断。",
                     VideoCodec: stream.VideoCodec,
                     AudioCodec: stream.AudioCodec);
             }
@@ -125,18 +118,18 @@ public sealed class YtDlpProbeService
                 stream.Url,
                 stream.Headers,
                 Warning: string.IsNullOrWhiteSpace(stream.Url)
-                    ? "已开播，但 yt-dlp 未返回可录制的媒体流。"
+                    ? "已开播，但媒体解析未返回可录制的媒体流。"
                     : string.Empty,
                 VideoCodec: stream.VideoCodec,
                 AudioCodec: stream.AudioCodec);
         }
         catch (JsonException)
         {
-            return ProbeResult.Failure("yt-dlp 返回了无法识别的数据。");
+            return ProbeResult.Failure("媒体解析返回了无法识别的数据。");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return ProbeResult.Failure($"解析 yt-dlp 数据失败：{ex.Message}");
+            return ProbeResult.Failure("媒体解析失败，请稍后重试。");
         }
     }
 
@@ -282,20 +275,6 @@ public sealed class YtDlpProbeService
                 target[header.Name] = header.Value.GetString() ?? string.Empty;
             }
         }
-    }
-
-    private static string FirstMeaningfulLine(string text)
-    {
-        var line = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(item => item.Trim())
-            .FirstOrDefault(item => !item.StartsWith("[download]", StringComparison.OrdinalIgnoreCase));
-        if (string.IsNullOrWhiteSpace(line))
-        {
-            return string.Empty;
-        }
-
-        line = line.Replace("ERROR:", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
-        return line.Length > 260 ? line[..260] : line;
     }
 
     private static bool IsHttpUrl(string? url) =>

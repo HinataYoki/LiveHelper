@@ -10,3 +10,5 @@ artifacts/
 out/
 dist/
 src/LiveHelper.Desktop/Videos/
+.oil-ui/
+LiveHelper.app/

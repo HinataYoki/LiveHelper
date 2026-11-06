@@ -8,6 +8,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\livehelper.ico</ApplicationIcon>
     <AssemblyName>LiveHelper</AssemblyName>
+    <NativeToolsRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</NativeToolsRid>
+    <NativeToolsRid Condition="'$(NativeToolsRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</NativeToolsRid>
+    <NativeToolsRid Condition="'$(NativeToolsRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</NativeToolsRid>
+    <NativeToolsRid Condition="'$(NativeToolsRid)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-x64</NativeToolsRid>
+    <NativeToolsRid Condition="'$(NativeToolsRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</NativeToolsRid>
   </PropertyGroup>
   <PropertyGroup Condition="'$(PublishAot)' == 'true'">
     <SelfContained>true</SelfContained>
@@ -26,6 +31,7 @@
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="TKCode.Arc" Version="$(ArcVersion)" />
+    <PackageReference Include="TKCode.Arc.Blocks" Version="$(ArcVersion)" />
     <PackageReference Include="TKCode.Arc.Fonts" Version="$(ArcVersion)" />
     <PackageReference Include="TKCode.Arc.Icons.Lucide" Version="$(ArcVersion)" />
   </ItemGroup>
@@ -34,8 +40,16 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+    <EmbeddedResource Include="NativeTools/$(NativeToolsRid)/**/*"
+                      LogicalName="LiveHelper.Desktop.NativeTools.$(NativeToolsRid).%(Filename)%(Extension)"
+                      Condition="'$(NativeToolsRid)' != '' and Exists('NativeTools/$(NativeToolsRid)')" />
     <EmbeddedResource Include="NativeRuntime\**\*.dll"
                       Condition="'$(RuntimeIdentifier)' == 'win-x64' or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows')))" />
     <TrimmerRootDescriptor Include="TrimmerRoots.xml" Condition="'$(PublishAot)' == 'true'" />
   </ItemGroup>
+  <Target Name="ValidateNativeTools" BeforeTargets="PrepareForBuild"
+          Condition="'$(NativeToolsRid)' != ''">
+    <Error Condition="!Exists('NativeTools/$(NativeToolsRid)')"
+           Text="Missing embedded recording engine assets for RID $(NativeToolsRid)." />
+  </Target>
 </Project>
