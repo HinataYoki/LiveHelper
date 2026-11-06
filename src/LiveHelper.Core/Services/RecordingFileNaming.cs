@@ -95,6 +95,28 @@ public static class RecordingFileNaming
     public static string BuildDanmakuPath(string recordingPath) =>
         GetCompanionBasePath(recordingPath) + ".danmaku.jsonl";
 
+    public static string EnsureUniquePath(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var fileName = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+        for (var index = 2; index < 10_000; index++)
+        {
+            var candidate = Path.Combine(directory, $"{fileName}_{index}{extension}");
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new IOException("无法生成唯一的文件名。");
+    }
+
     /// <summary>
     /// Returns a segment pattern whose numbering does not collide with an earlier
     /// recording in the same folder.

@@ -9,9 +9,9 @@ public sealed class BilibiliLiveResolver
     private const string ApiBase = "https://api.live.bilibili.com";
     private readonly HttpClient _httpClient;
 
-    public BilibiliLiveResolver(HttpClient? httpClient = null)
+    public BilibiliLiveResolver(HttpClient? httpClient = null, string? proxyUrl = null)
     {
-        _httpClient = httpClient ?? CreateHttpClient();
+        _httpClient = httpClient ?? CreateHttpClient(proxyUrl);
     }
 
     public async Task<ProbeResult> ProbeMetadataAsync(string url, CancellationToken cancellationToken)
@@ -169,12 +169,11 @@ public sealed class BilibiliLiveResolver
             : url;
     }
 
-    private static HttpClient CreateHttpClient()
+    private static HttpClient CreateHttpClient(string? proxyUrl)
     {
-        var client = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(18)
-        };
+        var client = LivePlatformHttp.CreateClient(
+            proxyUrl,
+            timeout: TimeSpan.FromSeconds(18));
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36");

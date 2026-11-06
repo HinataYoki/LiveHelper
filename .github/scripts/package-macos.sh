@@ -36,6 +36,15 @@ for library in "${native_libraries[@]}"; do
   chmod 755 "$macos/$library"
 done
 
+for tool in yt-dlp ffmpeg; do
+  if [[ ! -x "$publish_dir/tools/$tool" ]]; then
+    echo "macOS publish output is missing executable recording tool: tools/$tool" >&2
+    exit 1
+  fi
+done
+mkdir -p "$macos/tools"
+ditto "$publish_dir/tools" "$macos/tools"
+
 cat > "$contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -65,6 +74,10 @@ cat > "$contents/Info.plist" <<PLIST
   <string>12.0</string>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>NSSupportsAutomaticTermination</key>
+  <false/>
+  <key>NSSupportsSuddenTermination</key>
+  <false/>
 </dict>
 </plist>
 PLIST

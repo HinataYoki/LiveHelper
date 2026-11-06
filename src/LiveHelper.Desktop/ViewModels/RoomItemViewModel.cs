@@ -59,6 +59,11 @@ public sealed class RoomItemViewModel : ObservableObject
     {
         get
         {
+            if (HasStaleState)
+            {
+                return "最近一次检查失败，状态待确认";
+            }
+
             if (!string.IsNullOrWhiteSpace(Model.LiveTitle))
             {
                 return Model.LiveTitle;
@@ -110,6 +115,9 @@ public sealed class RoomItemViewModel : ObservableObject
 
     public bool HasIssue => !string.IsNullOrWhiteSpace(IssueText);
 
+    public bool HasStaleState =>
+        Model.ConsecutiveFailures > 0 && !string.IsNullOrWhiteSpace(Model.LastError);
+
     public string IssueText =>
         !string.IsNullOrWhiteSpace(Model.LastError)
             ? Model.LastError
@@ -127,6 +135,11 @@ public sealed class RoomItemViewModel : ObservableObject
             if (_isChecking)
             {
                 return "检查中";
+            }
+
+            if (HasStaleState)
+            {
+                return "状态未知";
             }
 
             if (Model.IsLive)
@@ -155,6 +168,11 @@ public sealed class RoomItemViewModel : ObservableObject
             if (_isRecording)
             {
                 return BadgeTone.Danger;
+            }
+
+            if (HasStaleState)
+            {
+                return BadgeTone.Warning;
             }
 
             if (Model.IsLive)
@@ -247,6 +265,8 @@ public sealed class RoomItemViewModel : ObservableObject
         ? "停止录制"
         : _isChecking
             ? "检查中"
+        : HasStaleState
+            ? "重新检查"
         : Model.IsLive
             ? "立即录制"
             : "立即检查";
@@ -298,6 +318,7 @@ public sealed class RoomItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRecording));
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(HasIssue));
+        OnPropertyChanged(nameof(HasStaleState));
         OnPropertyChanged(nameof(IssueText));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(StatusTone));

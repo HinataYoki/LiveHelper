@@ -28,6 +28,13 @@ public sealed class YtDlpProbeService
             arguments.Add("--proxy");
             arguments.Add(settings.ProxyUrl);
         }
+        else
+        {
+            // yt-dlp can otherwise pick up http_proxy/https_proxy from the
+            // environment, bypassing LiveHelper's deliberate direct connection.
+            arguments.Add("--proxy");
+            arguments.Add(string.Empty);
+        }
 
         if (!string.IsNullOrWhiteSpace(settings.Quality) && settings.Quality != "best")
         {

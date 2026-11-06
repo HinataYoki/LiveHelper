@@ -12,9 +12,9 @@ public sealed class HuyaLiveResolver
     private const string RoomDataMarker = "var TT_ROOM_DATA = ";
     private readonly HttpClient _httpClient;
 
-    public HuyaLiveResolver(HttpClient? httpClient = null)
+    public HuyaLiveResolver(HttpClient? httpClient = null, string? proxyUrl = null)
     {
-        _httpClient = httpClient ?? CreateHttpClient();
+        _httpClient = httpClient ?? CreateHttpClient(proxyUrl);
     }
 
     public async Task<HuyaRoomState?> ProbeRoomStateAsync(
@@ -193,12 +193,11 @@ public sealed class HuyaLiveResolver
             : url;
     }
 
-    private static HttpClient CreateHttpClient()
+    private static HttpClient CreateHttpClient(string? proxyUrl)
     {
-        var client = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(18)
-        };
+        var client = LivePlatformHttp.CreateClient(
+            proxyUrl,
+            timeout: TimeSpan.FromSeconds(18));
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36");

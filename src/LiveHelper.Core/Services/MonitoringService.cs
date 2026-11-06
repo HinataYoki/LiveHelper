@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LiveHelper.Core.Models;
 
 namespace LiveHelper.Core.Services;
@@ -15,7 +16,9 @@ public sealed class MonitoringService : IAsyncDisposable
     private readonly RecordingManager _recordingManager;
     private readonly SemaphoreSlim _scanGate = new(1, 1);
     private readonly object _roomsLock = new();
+    private readonly Dictionary<Guid, DateTimeOffset> _nextCheckAt = [];
     private IReadOnlyList<MonitoredRoom> _rooms = [];
+    private MacBackgroundActivity? _backgroundActivity;
     private CancellationTokenSource? _runCts;
     private Task? _runTask;
 
@@ -36,6 +39,19 @@ public sealed class MonitoringService : IAsyncDisposable
         lock (_roomsLock)
         {
             _rooms = rooms.ToArray();
+            var roomIds = _rooms.Select(room => room.Id).ToHashSet();
+            foreach (var staleId in _nextCheckAt.Keys.Where(id => !roomIds.Contains(id)).ToArray())
+            {
+                _nextCheckAt.Remove(staleId);
+            }
+
+            var firstCheckAt = DateTimeOffset.UtcNow.AddSeconds(1);
+            foreach (var room in _rooms)
+            {
+                _nextCheckAt.TryAdd(
+                    room.Id,
+                    firstCheckAt.AddMilliseconds(Random.Shared.Next(0, 2000)));
+            }
         }
     }
 
@@ -46,10 +62,35 @@ public sealed class MonitoringService : IAsyncDisposable
             return Task.CompletedTask;
         }
 
+        ResetSchedule();
+        _backgroundActivity = MacBackgroundActivity.TryStart(settings.PreventSleepWhileMonitoring);
         _runCts = new CancellationTokenSource();
         _runTask = RunLoopAsync(settings, _runCts.Token);
         StateChanged?.Invoke(this, new MonitorStateChangedEvent(true, false));
         return Task.CompletedTask;
+    }
+
+    public DateTimeOffset? GetNextCheckAt()
+    {
+        lock (_roomsLock)
+        {
+            DateTimeOffset? next = null;
+            foreach (var room in _rooms)
+            {
+                if (!room.IsMonitored
+                    || !_nextCheckAt.TryGetValue(room.Id, out var dueAt))
+                {
+                    continue;
+                }
+
+                if (next is null || dueAt < next)
+                {
+                    next = dueAt;
+                }
+            }
+
+            return next;
+        }
     }
 
     public async Task StopAsync()
@@ -75,6 +116,8 @@ public sealed class MonitoringService : IAsyncDisposable
             cts.Dispose();
             _runCts = null;
             _runTask = null;
+            _backgroundActivity?.Dispose();
+            _backgroundActivity = null;
             StateChanged?.Invoke(this, new MonitorStateChangedEvent(false, false));
         }
     }
@@ -88,7 +131,8 @@ public sealed class MonitoringService : IAsyncDisposable
 
         try
         {
-            await ScanCoreAsync(settings, cancellationToken).ConfigureAwait(false);
+            var rooms = GetRoomsSnapshot();
+            await ScanCoreAsync(rooms, settings, cancellationToken).ConfigureAwait(false);
             return true;
         }
         finally
@@ -110,6 +154,7 @@ public sealed class MonitoringService : IAsyncDisposable
         try
         {
             await CheckRoomAsync(room, settings, cancellationToken).ConfigureAwait(false);
+            ScheduleNextCheck(room, settings);
             return true;
         }
         finally
@@ -129,35 +174,50 @@ public sealed class MonitoringService : IAsyncDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var startedAt = DateTimeOffset.Now;
-            if (await _scanGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            try
             {
-                try
+                var dueRooms = GetDueRooms(DateTimeOffset.UtcNow);
+                if (await _scanGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
                 {
-                    await ScanCoreAsync(settings, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    _scanGate.Release();
+                    try
+                    {
+                        if (dueRooms.Count > 0)
+                        {
+                            await ScanCoreAsync(dueRooms, settings, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        _scanGate.Release();
+                    }
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Monitoring loop failed: {ex}");
+            }
 
-            var interval = TimeSpan.FromSeconds(Math.Clamp(settings.MonitorIntervalSeconds, 10, 3600));
-            var elapsed = DateTimeOffset.Now - startedAt;
-            var delay = interval > elapsed ? interval - elapsed : TimeSpan.FromSeconds(2);
-            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Task.Delay(GetWakeDelay(), cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 
-    private async Task ScanCoreAsync(AppSettings settings, CancellationToken cancellationToken)
+    private async Task ScanCoreAsync(
+        IReadOnlyList<MonitoredRoom> rooms,
+        AppSettings settings,
+        CancellationToken cancellationToken)
     {
-        IReadOnlyList<MonitoredRoom> snapshot;
-        lock (_roomsLock)
-        {
-            snapshot = _rooms.Where(room => room.IsMonitored).ToArray();
-        }
-
-        if (snapshot.Count == 0)
+        if (rooms.Count == 0)
         {
             return;
         }
@@ -171,13 +231,32 @@ public sealed class MonitoringService : IAsyncDisposable
 
         try
         {
-            await Parallel.ForEachAsync(snapshot, options, async (room, token) =>
+            await Parallel.ForEachAsync(rooms, options, async (room, token) =>
             {
-                await CheckRoomAsync(room, settings, token).ConfigureAwait(false);
+                try
+                {
+                    await CheckRoomAsync(room, settings, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    MarkCheckFailure(room, ex);
+                }
             }).ConfigureAwait(false);
         }
         finally
         {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                foreach (var room in rooms)
+                {
+                    ScheduleNextCheck(room, settings);
+                }
+            }
+
             StateChanged?.Invoke(this, new MonitorStateChangedEvent(IsRunning, false));
         }
     }
@@ -263,4 +342,99 @@ public sealed class MonitoringService : IAsyncDisposable
 
     private static string Combine(params string[] values) =>
         string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct());
+
+    private void MarkCheckFailure(MonitoredRoom room, Exception ex)
+    {
+        room.LastCheckedAt = DateTimeOffset.Now;
+        room.LastError = $"检查失败：{ex.Message}";
+        room.ConsecutiveFailures++;
+        RoomUpdated?.Invoke(
+            this,
+            new RoomProbeUpdatedEvent(room, ProbeResult.Failure(room.LastError), false));
+    }
+
+    private IReadOnlyList<MonitoredRoom> GetRoomsSnapshot()
+    {
+        lock (_roomsLock)
+        {
+            return _rooms.Where(room => room.IsMonitored).ToArray();
+        }
+    }
+
+    private IReadOnlyList<MonitoredRoom> GetDueRooms(DateTimeOffset now)
+    {
+        lock (_roomsLock)
+        {
+            return _rooms
+                .Where(room => room.IsMonitored
+                               && (!_nextCheckAt.TryGetValue(room.Id, out var dueAt) || dueAt <= now))
+                .ToArray();
+        }
+    }
+
+    private TimeSpan GetWakeDelay()
+    {
+        lock (_roomsLock)
+        {
+            DateTimeOffset? next = null;
+            foreach (var room in _rooms)
+            {
+                if (!room.IsMonitored
+                    || !_nextCheckAt.TryGetValue(room.Id, out var dueAt))
+                {
+                    continue;
+                }
+
+                if (next is null || dueAt < next)
+                {
+                    next = dueAt;
+                }
+            }
+
+            if (next is null)
+            {
+                return TimeSpan.FromSeconds(5);
+            }
+
+            var delay = next.Value - DateTimeOffset.UtcNow;
+            if (delay <= TimeSpan.Zero)
+            {
+                return TimeSpan.FromSeconds(1);
+            }
+
+            return delay > TimeSpan.FromSeconds(5) ? TimeSpan.FromSeconds(5) : delay;
+        }
+    }
+
+    private void ResetSchedule()
+    {
+        lock (_roomsLock)
+        {
+            var firstCheckAt = DateTimeOffset.UtcNow.AddSeconds(1);
+            foreach (var room in _rooms.Where(room => room.IsMonitored))
+            {
+                _nextCheckAt[room.Id] = firstCheckAt.AddMilliseconds(Random.Shared.Next(0, 1500));
+            }
+        }
+    }
+
+    private void ScheduleNextCheck(MonitoredRoom room, AppSettings settings)
+    {
+        var configured = Math.Clamp(settings.MonitorIntervalSeconds, 10, 3600);
+        var baseSeconds = room.Platform == LivePlatform.Douyin
+            ? Math.Max(configured, 90)
+            : configured;
+        var failures = Math.Clamp(room.ConsecutiveFailures, 0, 4);
+        if (failures > 0)
+        {
+            baseSeconds = Math.Min(baseSeconds * (1 << (failures - 1)), 1800);
+        }
+
+        var jittered = baseSeconds * (0.85 + Random.Shared.NextDouble() * 0.30);
+        var delay = TimeSpan.FromSeconds(Math.Clamp(jittered, 10, 3600));
+        lock (_roomsLock)
+        {
+            _nextCheckAt[room.Id] = DateTimeOffset.UtcNow + delay;
+        }
+    }
 }

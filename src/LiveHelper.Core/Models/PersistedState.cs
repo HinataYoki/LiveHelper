@@ -2,7 +2,7 @@ namespace LiveHelper.Core.Models;
 
 public sealed class PersistedState
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 4;
 
     public int Version { get; set; } = CurrentVersion;
 

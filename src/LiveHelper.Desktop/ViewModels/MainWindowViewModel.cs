@@ -22,6 +22,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly WorkspaceStateStore _workspaceStore = new();
     private readonly LiveProbeService _probeService = new();
     private readonly RecordingManager _recordingManager = new();
+    private readonly RecordingConverter _recordingConverter = new();
     private readonly MonitoringService _monitoring;
     private readonly ToolLocator _toolLocator = new();
     private readonly DispatcherTimer _timer;
@@ -41,7 +42,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private DateTimeOffset? _nextScanAt;
     private DateTimeOffset? _lastScanCompletedAt;
     private DateTimeOffset? _feedbackUntil;
+    private DateTimeOffset _lastActivationScanAt = DateTimeOffset.MinValue;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
+    private readonly CancellationTokenSource _conversionCts = new();
     private string _newRoomUrl = string.Empty;
     private string _newRoomName = string.Empty;
     private bool _newRoomAutoRecord = true;
@@ -68,6 +71,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _startMinimized;
     private bool _recordingEnabled = true;
     private bool _startMonitoringOnLaunch = true;
+    private bool _preventSleepWhileMonitoring = true;
     private string _settingsFeedback = string.Empty;
     private int _feedbackTone;
     private int _timerTicks;
@@ -98,6 +102,8 @@ public sealed class MainWindowViewModel : ObservableObject
         PickOutputFolderCommand = new RelayCommand(PickOutputFolderAsync);
         ReloadWorkspaceCommand = new RelayCommand(ReloadWorkspaceAsync);
         OpenRecordingFolderCommand = new RelayCommand(parameter => OpenRecordingFolder(parameter as RecordingItemViewModel));
+        ConvertRecordingCommand = new RelayCommand(parameter => ConvertRecordingAsync(parameter as RecordingItemViewModel));
+        OpenConvertedRecordingCommand = new RelayCommand(parameter => OpenConvertedRecording(parameter as RecordingItemViewModel));
         ClearActivitiesCommand = new RelayCommand(ClearActivities);
 
         _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, OnTimerTick);
@@ -141,6 +147,10 @@ public sealed class MainWindowViewModel : ObservableObject
     public RelayCommand ReloadWorkspaceCommand { get; }
 
     public RelayCommand OpenRecordingFolderCommand { get; }
+
+    public RelayCommand ConvertRecordingCommand { get; }
+
+    public RelayCommand OpenConvertedRecordingCommand { get; }
 
     public RelayCommand ClearActivitiesCommand { get; }
 
@@ -188,7 +198,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public int RoomCount => Rooms.Count;
 
-    public int LiveRoomCount => Rooms.Count(room => room.IsLive);
+    public int LiveRoomCount => Rooms.Count(room => room.IsLive && !room.HasStaleState);
 
     public int RecordingRoomCount => Rooms.Count(room => room.IsRecording);
 
@@ -519,7 +529,17 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _startMonitoringOnLaunch, value);
     }
 
-    public IReadOnlyList<string> RecordingFormats { get; } = ["MP4", "MKV", "FLV", "TS"];
+    public bool PreventSleepWhileMonitoring
+    {
+        get => _preventSleepWhileMonitoring;
+        set => SetProperty(ref _preventSleepWhileMonitoring, value);
+    }
+
+    public bool IsMacOS => OperatingSystem.IsMacOS();
+
+    public string StartupSettingLabel => IsMacOS ? "登录时自动启动" : "Windows 开机自启";
+
+    public IReadOnlyList<string> RecordingFormats { get; } = ["FLV", "MP4", "MKV", "TS"];
 
     public string SelectedRecordingFormat
     {
@@ -544,9 +564,9 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string RecordingStrategyHint => _recordingFormat switch
     {
-        "mp4" => "默认格式，兼容性最好；HLS 原流可直接复制，FLV 直播源或编码不兼容时自动转为 H.264 + AAC。",
-        "flv" => "原流可直接复制，体积偏大且部分播放器兼容性一般；编码不兼容时自动转为 H.264 + AAC。",
-        _ => "TS / MKV 直接复制原流，不转码，CPU 与画质损失最低。"
+        "flv" => "默认格式。录制时原流复制，后台 CPU 占用最低；完成后可在“录制档案”手动转为 MP4。",
+        "mp4" => "录制时会把 FLV 直播源转为 H.264 + AAC，CPU 占用较高；仅在需要直接得到 MP4 时选择。",
+        _ => "MKV / TS 直接复制原流，不转码；完成后可在“录制档案”手动转为 MP4。"
     };
 
     public string SegmentMinutesText
@@ -630,6 +650,9 @@ public sealed class MainWindowViewModel : ObservableObject
 
         foreach (var room in _state.Rooms.OrderByDescending(room => room.CreatedAt))
         {
+            // A new process cannot know whether a persisted live flag is still valid.
+            // The first scheduled probe restores it and can start recording from fresh data.
+            room.IsLive = false;
             AddRoomViewModel(room);
         }
 
@@ -674,9 +697,27 @@ public sealed class MainWindowViewModel : ObservableObject
 
         _shuttingDown = true;
         _timer.Stop();
+        _conversionCts.Cancel();
         await _monitoring.DisposeAsync();
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
         await SaveStateAsync(logSuccess: false);
+    }
+
+    public async Task RefreshOnActivationAsync()
+    {
+        if (!_isMonitoring || _isScanning)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (now - _lastActivationScanAt < TimeSpan.FromSeconds(30))
+        {
+            return;
+        }
+
+        _lastActivationScanAt = now;
+        await ScanNowAsync();
     }
 
     private void Navigate(object? parameter)
@@ -714,7 +755,9 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         _monitoring.SetRooms(Rooms.Select(item => item.Model));
         await _monitoring.StartAsync(Settings.Clone());
-        _nextScanAt = DateTimeOffset.Now + TimeSpan.FromSeconds(Settings.MonitorIntervalSeconds);
+        _nextScanAt = _monitoring.GetNextCheckAt()
+                      ?? DateTimeOffset.Now + TimeSpan.FromSeconds(Settings.MonitorIntervalSeconds);
+        _lastActivationScanAt = DateTimeOffset.UtcNow;
         AddActivity("自动巡检已启动。", ActivityTone.Success);
         NotifyMonitoringProperties();
     }
@@ -726,7 +769,10 @@ public sealed class MainWindowViewModel : ObservableObject
         if (!started)
         {
             AddActivity("已有巡检正在执行，请稍后再试。", ActivityTone.Warning);
+            return;
         }
+
+        _lastActivationScanAt = DateTimeOffset.UtcNow;
     }
 
     private void OpenAddRoom()
@@ -868,6 +914,12 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
+        if (item.HasStaleState)
+        {
+            await CheckRoomAsync(item);
+            return;
+        }
+
         if (!item.IsLive)
         {
             await CheckRoomAsync(item);
@@ -971,6 +1023,17 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
+        var proxyUrl = AppSettings.NormalizeProxyUrl(ProxyUrl);
+        if (proxyUrl.Length > 0
+            && (!Uri.TryCreate(proxyUrl, UriKind.Absolute, out var proxyUri)
+                || string.IsNullOrWhiteSpace(proxyUri.Host)))
+        {
+            ShowSettingsFeedback(
+                "代理 URL 无效，请填写类似 http://127.0.0.1:7890 的地址；不使用代理请留空。",
+                isError: true);
+            return;
+        }
+
         var previousDirectory = Settings.OutputDirectory;
         var targetDirectory = OutputDirectory.Trim();
         var wasMonitoring = _isMonitoring;
@@ -992,10 +1055,11 @@ public sealed class MainWindowViewModel : ObservableObject
             MaxConcurrentChecks = maxChecks,
             MaxConcurrentRecordings = maxRecordings,
             StartMonitoringOnLaunch = StartMonitoringOnLaunch,
+            PreventSleepWhileMonitoring = PreventSleepWhileMonitoring,
             RecordingEnabled = RecordingEnabled,
             YtDlpPath = YtDlpPath,
             FfmpegPath = FfmpegPath,
-            ProxyUrl = ProxyUrl,
+            ProxyUrl = proxyUrl,
             RecordingFormat = _recordingFormat,
             Quality = Quality,
             SegmentMinutes = segmentMinutes,
@@ -1022,6 +1086,11 @@ public sealed class MainWindowViewModel : ObservableObject
             if (directoryChanged)
             {
                 ReplaceWorkspace(workspace.State);
+            }
+            else
+            {
+                _state.Settings = next;
+                Settings = next;
             }
 
             Settings = _state.Settings;
@@ -1171,6 +1240,62 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
+    private async Task ConvertRecordingAsync(RecordingItemViewModel? item)
+    {
+        if (item is null || !item.CanConvertToMp4)
+        {
+            return;
+        }
+
+        item.BeginConversion();
+        AddActivity(
+            $"正在转换 MP4（原流复制）：{Path.GetFileName(item.FilePath)}",
+            ActivityTone.Info);
+
+        try
+        {
+            var result = await _recordingConverter
+                .ConvertToMp4Async(item.FilePath, Settings.Clone(), _conversionCts.Token)
+                .ConfigureAwait(true);
+            if (!result.Succeeded)
+            {
+                item.FailConversion(result.Error);
+                AddActivity($"MP4 转换失败：{result.Error}", ActivityTone.Error);
+                return;
+            }
+
+            item.CompleteConversion(result.OutputPath);
+            await SaveStateAsync(logSuccess: false).ConfigureAwait(true);
+            AddActivity(
+                $"MP4 已生成：{Path.GetFileName(result.OutputPath)}",
+                ActivityTone.Success);
+        }
+        catch (Exception ex)
+        {
+            item.FailConversion($"MP4 转换失败：{ex.Message}");
+            AddActivity($"MP4 转换失败：{ex.Message}", ActivityTone.Error);
+        }
+    }
+
+    private void OpenConvertedRecording(RecordingItemViewModel? item)
+    {
+        var path = item?.ConvertedMp4Path;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            AddActivity("转换后的 MP4 文件不存在。", ActivityTone.Warning);
+            return;
+        }
+
+        try
+        {
+            OpenExternal(path);
+        }
+        catch (Exception ex)
+        {
+            AddActivity($"无法打开 MP4：{ex.Message}", ActivityTone.Error);
+        }
+    }
+
     private void ClearActivities()
     {
         Activities.Clear();
@@ -1241,7 +1366,8 @@ public sealed class MainWindowViewModel : ObservableObject
             else if (wasScanning && !e.IsScanning)
             {
                 _lastScanCompletedAt = DateTimeOffset.Now;
-                _nextScanAt = DateTimeOffset.Now + TimeSpan.FromSeconds(Settings.MonitorIntervalSeconds);
+                _nextScanAt = _monitoring.GetNextCheckAt()
+                              ?? DateTimeOffset.Now + TimeSpan.FromSeconds(Settings.MonitorIntervalSeconds);
                 RefreshRoomRelativeTimes();
             }
 
@@ -1323,6 +1449,11 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(NextScanText));
         OnPropertyChanged(nameof(LastScanText));
         OnPropertyChanged(nameof(SessionDurationText));
+
+        if (_isMonitoring && !_isScanning)
+        {
+            _nextScanAt = _monitoring.GetNextCheckAt();
+        }
 
         foreach (var item in Rooms.Where(room => room.IsRecording))
         {
@@ -1416,6 +1547,9 @@ public sealed class MainWindowViewModel : ObservableObject
         StartMinimized = Settings.StartMinimized;
         RecordingEnabled = Settings.RecordingEnabled;
         StartMonitoringOnLaunch = Settings.StartMonitoringOnLaunch;
+        PreventSleepWhileMonitoring = Settings.PreventSleepWhileMonitoring;
+        OnPropertyChanged(nameof(IsMacOS));
+        OnPropertyChanged(nameof(StartupSettingLabel));
         OnPropertyChanged(nameof(WorkspaceModeText));
     }
 
@@ -1428,6 +1562,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _lastErrors.Clear();
         foreach (var room in state.Rooms.OrderByDescending(room => room.CreatedAt))
         {
+            room.IsLive = false;
             AddRoomViewModel(room);
         }
 

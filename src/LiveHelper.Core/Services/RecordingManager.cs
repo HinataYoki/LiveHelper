@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using LiveHelper.Core.Models;
 
@@ -87,7 +88,7 @@ public sealed class RecordingManager : IAsyncDisposable
         Directory.CreateDirectory(outputDirectory);
         var filePath = segmented
             ? RecordingFileNaming.EnsureUniqueSegmentPattern(desiredPath)
-            : EnsureUniquePath(desiredPath);
+            : RecordingFileNaming.EnsureUniquePath(desiredPath);
         var sessionPath = RecordingFileNaming.GetCompanionBasePath(filePath)
                           + Path.GetExtension(filePath);
         var title = string.IsNullOrWhiteSpace(probe.Title) ? room.LiveTitle : probe.Title;
@@ -208,14 +209,21 @@ public sealed class RecordingManager : IAsyncDisposable
                          || streamUri.Scheme == Uri.UriSchemeHttps);
         if (isHttp)
         {
-            Add("-reconnect");
-            Add("1");
-            Add("-reconnect_streamed");
-            Add("1");
-            Add("-reconnect_at_eof");
-            Add("1");
-            Add("-reconnect_delay_max");
-            Add("10");
+            if (!IsHlsStream(probe.StreamUrl))
+            {
+                // HTTP reconnect belongs to the protocol layer. Applying it to an
+                // HLS playlist makes ffmpeg re-read the playlist at EOF instead of
+                // consuming segments and can leave the recorder without any data.
+                Add("-reconnect");
+                Add("1");
+                Add("-reconnect_streamed");
+                Add("1");
+                Add("-reconnect_at_eof");
+                Add("1");
+                Add("-reconnect_delay_max");
+                Add("10");
+            }
+
             Add("-rw_timeout");
             Add("15000000");
         }
@@ -273,6 +281,10 @@ public sealed class RecordingManager : IAsyncDisposable
         {
             Add("-f");
             Add(GetMuxerName(format));
+            if (format == "flv")
+            {
+                AddPair("-flvflags", "no_duration_filesize");
+            }
         }
 
         if (ShouldTranscode(probe, format))
@@ -287,10 +299,6 @@ public sealed class RecordingManager : IAsyncDisposable
             Add("aac");
             Add("-b:a");
             Add("192k");
-            if (format == "mp4")
-            {
-                AddPair("-movflags", "+faststart");
-            }
         }
 
         Add(outputPath);
@@ -316,7 +324,10 @@ public sealed class RecordingManager : IAsyncDisposable
         var audio = (probe.AudioCodec ?? string.Empty).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(video) || video == "none")
         {
-            return true;
+            // FLV live sources (notably Douyin) usually expose H.264/AAC without
+            // codec metadata. Copying is the low-CPU default; MP4 still needs a
+            // conservative transcode because its timeline is less forgiving.
+            return normalized == "mp4";
         }
 
         var videoCompatible = normalized == "mp4"
@@ -340,6 +351,11 @@ public sealed class RecordingManager : IAsyncDisposable
         && (uri.AbsolutePath.EndsWith(".flv", StringComparison.OrdinalIgnoreCase)
             || uri.Query.Contains("live-bvc", StringComparison.OrdinalIgnoreCase)
             || uri.Host.Contains("flv", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsHlsStream(string? streamUrl) =>
+        Uri.TryCreate(streamUrl, UriKind.Absolute, out var uri)
+        && (uri.AbsolutePath.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase)
+            || uri.Query.Contains("m3u8", StringComparison.OrdinalIgnoreCase));
 
     private static async Task SaveThumbnailAsync(
         ActiveRecording active,
@@ -443,14 +459,24 @@ public sealed class RecordingManager : IAsyncDisposable
             return;
         }
 
-        try
+        if (OperatingSystem.IsWindows())
         {
-            await active.Process.StandardInput.WriteLineAsync("q").ConfigureAwait(false);
-            await active.Process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await active.Process.StandardInput.WriteLineAsync("q").ConfigureAwait(false);
+                await active.Process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
+                active.Process.StandardInput.Close();
+            }
+            catch
+            {
+                // If ffmpeg is no longer reading stdin, fall through to the wait and kill path.
+            }
         }
-        catch
+        else
         {
-            // If ffmpeg is no longer reading stdin, fall through to the wait and kill path.
+            // SIGINT is handled by ffmpeg as a graceful shutdown and finalizes the
+            // container. SIGKILL (Process.Kill) leaves MP4 files without a moov box.
+            TryInterrupt(active.Process);
         }
 
         try
@@ -762,28 +788,6 @@ public sealed class RecordingManager : IAsyncDisposable
         return false;
     }
 
-    private static string EnsureUniquePath(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return path;
-        }
-
-        var directory = Path.GetDirectoryName(path) ?? string.Empty;
-        var fileName = Path.GetFileNameWithoutExtension(path);
-        var extension = Path.GetExtension(path);
-        for (var index = 2; index < 10_000; index++)
-        {
-            var candidate = Path.Combine(directory, $"{fileName}_{index}{extension}");
-            if (!File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        throw new IOException("无法生成唯一的录制文件名。");
-    }
-
     private static void TryKill(Process process)
     {
         try
@@ -798,4 +802,23 @@ public sealed class RecordingManager : IAsyncDisposable
             // Best-effort cleanup.
         }
     }
+
+    private static void TryInterrupt(Process process)
+    {
+        const int sigInt = 2;
+        try
+        {
+            if (!process.HasExited)
+            {
+                _ = Kill(process.Id, sigInt);
+            }
+        }
+        catch
+        {
+            // Fall through to the timeout and best-effort kill path.
+        }
+    }
+
+    [DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+    private static extern int Kill(int processId, int signal);
 }

@@ -4,16 +4,20 @@ namespace LiveHelper.Core.Services;
 
 public sealed class LiveProbeService
 {
-    private readonly BilibiliLiveResolver _bilibili = new();
-    private readonly DouyinLiveResolver _douyin = new();
-    private readonly HuyaLiveResolver _huya = new();
+    private readonly object _resolverLock = new();
     private readonly YtDlpProbeService _ytDlp = new();
+    private BilibiliLiveResolver _bilibili = new();
+    private DouyinLiveResolver _douyin = new();
+    private HuyaLiveResolver _huya = new();
+    private string? _resolverProxyUrl;
 
     public async Task<ProbeResult> ProbeAsync(
         MonitoredRoom room,
         AppSettings settings,
         CancellationToken cancellationToken)
     {
+        EnsureResolvers(settings.ProxyUrl);
+
         if (room.Platform == LivePlatform.Direct)
         {
             return new ProbeResult(
@@ -181,4 +185,24 @@ public sealed class LiveProbeService
 
     private static string CombineWarnings(params string[] values) =>
         string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct());
+
+    private void EnsureResolvers(string? proxyUrl)
+    {
+        var normalized = (proxyUrl ?? string.Empty).Trim();
+        lock (_resolverLock)
+        {
+            if (string.Equals(_resolverProxyUrl, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            // Settings are applied by restarting monitoring. Keeping the previous
+            // clients alive avoids disposing an HttpClient that a manual check is
+            // still using during a settings transition.
+            _bilibili = new BilibiliLiveResolver(proxyUrl: normalized);
+            _douyin = new DouyinLiveResolver(proxyUrl: normalized);
+            _huya = new HuyaLiveResolver(proxyUrl: normalized);
+            _resolverProxyUrl = normalized;
+        }
+    }
 }

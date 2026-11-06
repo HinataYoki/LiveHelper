@@ -107,6 +107,7 @@ public sealed class WorkspaceStateStore
         var state = CloneState(fallbackState);
         state.Settings.OutputDirectory = fullDirectory;
         state.Settings.Normalize();
+        WorkspaceUpgrade.Apply(state);
         RelocateWorkspacePaths(state, fullDirectory, fallbackState.Settings.OutputDirectory);
         await new JsonStateStore(configPath).SaveAsync(state, cancellationToken)
             .ConfigureAwait(false);
@@ -247,7 +248,8 @@ public sealed class WorkspaceStateStore
             var item = state.Recordings[index];
             state.Recordings[index] = item with
             {
-                FilePath = RelocatePath(item.FilePath, previousDirectory, workspaceDirectory)
+                FilePath = RelocatePath(item.FilePath, previousDirectory, workspaceDirectory),
+                Mp4Path = RelocatePath(item.Mp4Path, previousDirectory, workspaceDirectory)
             };
         }
 

@@ -2,13 +2,13 @@ namespace LiveHelper.Core.Models;
 
 public sealed class AppSettings
 {
-    public const string DefaultFolderTemplate = "{platform}_{roomId}";
+    public const string DefaultFolderTemplate = "{platform}_{roomName}_{roomId}";
 
     public const string DefaultFileNameTemplate = "{date}_{title}";
 
-    public const string DefaultRecordingFormat = "mp4";
+    public const string DefaultRecordingFormat = "flv";
 
-    public static readonly string[] SupportedRecordingFormats = ["ts", "mkv", "mp4", "flv"];
+    public static readonly string[] SupportedRecordingFormats = ["flv", "mp4", "mkv", "ts"];
 
     public string OutputDirectory { get; set; } = GetDefaultOutputDirectory();
 
@@ -23,6 +23,8 @@ public sealed class AppSettings
     public int MaxConcurrentRecordings { get; set; } = 3;
 
     public bool StartMonitoringOnLaunch { get; set; } = true;
+
+    public bool PreventSleepWhileMonitoring { get; set; } = true;
 
     public bool RecordingEnabled { get; set; } = true;
 
@@ -67,7 +69,7 @@ public sealed class AppSettings
         SegmentMinutes = Math.Clamp(SegmentMinutes, 0, 1440);
         YtDlpPath = string.IsNullOrWhiteSpace(YtDlpPath) ? "yt-dlp" : YtDlpPath.Trim();
         FfmpegPath = string.IsNullOrWhiteSpace(FfmpegPath) ? "ffmpeg" : FfmpegPath.Trim();
-        ProxyUrl = ProxyUrl.Trim();
+        ProxyUrl = NormalizeProxyUrl(ProxyUrl);
     }
 
     private static string RemoveKnownExtension(string template) =>
@@ -84,6 +86,18 @@ public sealed class AppSettings
 
     public static string GetFileExtension(string? format) =>
         "." + NormalizeRecordingFormat(format);
+
+    public static string NormalizeProxyUrl(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (normalized.Length == 0
+            || normalized.Contains("://", StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        return "http://" + normalized;
+    }
 
     public static string GetDefaultOutputDirectory()
     {

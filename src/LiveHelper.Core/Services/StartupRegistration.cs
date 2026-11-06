@@ -22,9 +22,14 @@ public static class StartupRegistration
         bool enabled,
         string? executablePath = null)
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            return MacStartupRegistration.Apply(enabled);
+        }
+
         if (!OperatingSystem.IsWindows())
         {
-            return StartupRegistrationResult.Failure("开机自启目前仅支持 Windows。");
+            return StartupRegistrationResult.Failure("开机自启目前仅支持 Windows 和 macOS。");
         }
 
         try
@@ -59,12 +64,23 @@ public static class StartupRegistration
 
     public static bool IsEnabled()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            return MacStartupRegistration.IsEnabled();
+        }
+
         return TryGetRegisteredCommand(out _);
     }
 
     public static bool TryGetRegisteredCommand(out string command)
     {
         command = string.Empty;
+        if (OperatingSystem.IsMacOS())
+        {
+            command = MacStartupRegistration.GetLaunchTarget() ?? string.Empty;
+            return command.Length > 0 && MacStartupRegistration.IsEnabled();
+        }
+
         if (!OperatingSystem.IsWindows())
         {
             return false;

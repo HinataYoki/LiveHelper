@@ -796,6 +796,8 @@
                           <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold"
                                      Foreground="#292D2A" TextTrimming="CharacterEllipsis" MaxWidth="360" />
                           <TextBlock Text="{Binding RoomName}" FontSize="9" Foreground="#88847A" />
+                          <TextBlock Text="{Binding ConversionError}" IsVisible="{Binding HasConversionError}"
+                                     FontSize="9" Foreground="#D94A3A" TextWrapping="Wrap" MaxWidth="360" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
                           <TextBlock Text="平台" FontSize="8" Foreground="#A39E92" />
@@ -809,15 +811,36 @@
                           <TextBlock Text="大小" FontSize="8" Foreground="#A39E92" />
                           <TextBlock Text="{Binding SizeText}" FontFamily="Geist Mono, Consolas" FontSize="10" Foreground="#555A55" />
                         </StackPanel>
-                        <arc:Button Grid.Column="5"
-                                    Variant="Ghost"
-                                    Command="{Binding $parent[Window].DataContext.OpenRecordingFolderCommand}"
-                                    CommandParameter="{Binding}">
-                          <StackPanel Orientation="Horizontal" Spacing="5">
-                            <lucide:LucideIcon Kind="FolderOpen" Size="14" />
-                            <TextBlock Text="定位" FontSize="10" />
-                          </StackPanel>
-                        </arc:Button>
+                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6"
+                                    VerticalAlignment="Center">
+                          <arc:Button Variant="Secondary"
+                                      IsVisible="{Binding SupportsMp4Conversion}"
+                                      IsEnabled="{Binding CanConvertToMp4}"
+                                      Command="{Binding $parent[Window].DataContext.ConvertRecordingCommand}"
+                                      CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                              <lucide:LucideIcon Kind="Video" Size="14" />
+                              <TextBlock Text="{Binding ConversionButtonText}" FontSize="10" />
+                            </StackPanel>
+                          </arc:Button>
+                          <arc:Button Variant="Secondary"
+                                      IsVisible="{Binding HasConvertedMp4}"
+                                      Command="{Binding $parent[Window].DataContext.OpenConvertedRecordingCommand}"
+                                      CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                              <lucide:LucideIcon Kind="Video" Size="14" />
+                              <TextBlock Text="打开 MP4" FontSize="10" />
+                            </StackPanel>
+                          </arc:Button>
+                          <arc:Button Variant="Ghost"
+                                      Command="{Binding $parent[Window].DataContext.OpenRecordingFolderCommand}"
+                                      CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                              <lucide:LucideIcon Kind="FolderOpen" Size="14" />
+                              <TextBlock Text="定位" FontSize="10" />
+                            </StackPanel>
+                          </arc:Button>
+                        </StackPanel>
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -879,7 +902,7 @@
                       <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <arc:Input Grid.Column="0" Label="文件夹模板"
                                    Text="{Binding FolderTemplate, Mode=TwoWay}"
-                                   Description="可用 {platform}、{roomId}、{roomName}" />
+                                   Description="默认含主播名；可用 {platform}、{roomId}、{roomName}、{anchor}" />
                         <arc:Input Grid.Column="1" Label="文件名模板"
                                    Text="{Binding FileNameTemplate, Mode=TwoWay}"
                                    Description="可用 {date}、{time}、{title}、{anchor}" />
@@ -912,13 +935,18 @@
                           <arc:Input Grid.Column="1" Label="检查并发"
                                      Text="{Binding MaxChecksText, Mode=TwoWay}" />
                         </Grid>
+                        <TextBlock Text="抖音最低按 90 秒巡检；检查失败会自动退避，其他平台按上面的间隔执行。"
+                                   FontSize="9" Foreground="#8D897F" TextWrapping="Wrap" />
                         <arc:Input Label="录制并发" Text="{Binding MaxRecordingsText, Mode=TwoWay}" />
                         <arc:Switch IsChecked="{Binding StartMonitoringOnLaunch, Mode=TwoWay}"
                                     Content="启动时自动巡检" />
                         <arc:Switch IsChecked="{Binding LaunchAtStartup, Mode=TwoWay}"
-                                    Content="Windows 开机自启" />
+                                    Content="{Binding StartupSettingLabel}" />
+                        <arc:Switch IsChecked="{Binding PreventSleepWhileMonitoring, Mode=TwoWay}"
+                                    Content="巡检期间阻止系统休眠"
+                                    IsVisible="{Binding IsMacOS}" />
                         <arc:Switch IsChecked="{Binding StartMinimized, Mode=TwoWay}"
-                                    Content="启动后最小化到任务栏" />
+                                    Content="启动后隐藏到托盘/菜单栏" />
                       </StackPanel>
                     </Border>
 
@@ -939,7 +967,7 @@
                                     HorizontalAlignment="Stretch" />
                           <TextBlock Text="{Binding RecordingStrategyHint}" FontSize="9"
                                                      Foreground="#8D897F" TextWrapping="Wrap" />
-                          <TextBlock Text="若主要在意 CPU 与画质，建议选 MKV：原流直拷，不在录制时转码；MP4 对 FLV 直播源会转码以保证时长和兼容性。"
+                          <TextBlock Text="默认 FLV 原流复制，录制期间几乎不占 CPU；需要 MP4 时，在“录制档案”里手动转换，转换失败不会影响原文件。"
                                      FontSize="9" Foreground="#A07850" TextWrapping="Wrap" />
                         </StackPanel>
                         <arc:Input Label="分段时长（分钟）"
@@ -1012,8 +1040,8 @@
                       <TextBlock Text="网络与解析" Classes="cardTitle" />
                       <arc:Input Label="代理 URL（可选）" Text="{Binding ProxyUrl, Mode=TwoWay}"
                                  Placeholder="http://127.0.0.1:7890"
-                                 Description="仅作用于 yt-dlp 探测" />
-                      <TextBlock Text="抖音与 B 站元数据使用内置解析；其他平台在需要时调用 yt-dlp。"
+                                 Description="留空时所有探测直连；填写后内置解析和 yt-dlp 共用此代理" />
+                      <TextBlock Text="抖音、B 站和虎牙的内置解析也会使用这里的设置。系统代理不会被自动继承，避免国内直播页被代理风控拦截。"
                                  FontSize="9" Foreground="#8D897F" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>

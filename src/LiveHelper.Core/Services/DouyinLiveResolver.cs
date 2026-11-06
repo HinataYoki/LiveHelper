@@ -28,9 +28,9 @@ public sealed class DouyinLiveResolver
     private readonly HttpClient _httpClient;
     private bool _cookiesPrimed;
 
-    public DouyinLiveResolver(HttpClient? httpClient = null)
+    public DouyinLiveResolver(HttpClient? httpClient = null, string? proxyUrl = null)
     {
-        _httpClient = httpClient ?? CreateHttpClient();
+        _httpClient = httpClient ?? CreateHttpClient(proxyUrl);
     }
 
     /// <summary>
@@ -526,22 +526,12 @@ public sealed class DouyinLiveResolver
         return -1;
     }
 
-    private static HttpClient CreateHttpClient()
+    private static HttpClient CreateHttpClient(string? proxyUrl)
     {
-        var handler = new SocketsHttpHandler
-        {
-            AutomaticDecompression = DecompressionMethods.All,
-            CookieContainer = new CookieContainer(),
-            UseCookies = true,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-        };
-
-        var client = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(20)
-        };
+        var client = LivePlatformHttp.CreateClient(
+            proxyUrl,
+            new CookieContainer(),
+            TimeSpan.FromSeconds(20));
         client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd(
             "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");

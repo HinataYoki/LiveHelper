@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -15,6 +16,7 @@ public sealed partial class MainWindow : Window
     private bool _initialized;
     private bool _allowClose;
     private bool _startedHidden;
+    private bool _isQuitting;
 
     public MainWindow()
     {
@@ -70,11 +72,25 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        if (e.CloseReason == WindowCloseReason.WindowClosing && !_isQuitting)
+        {
+            e.Cancel = true;
+            HideToTray();
+            return;
+        }
+
         e.Cancel = true;
         await _viewModel.ShutdownAsync();
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
         _allowClose = true;
-        Close();
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+        }
+        else
+        {
+            Close();
+        }
     }
 
     private TrayIcon CreateTrayIcon()
@@ -114,6 +130,11 @@ public sealed partial class MainWindow : Window
 
     private void ShowFromTray()
     {
+        if (Application.Current?.TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatableLifetime)
+        {
+            activatableLifetime.TryLeaveBackground();
+        }
+
         ShowInTaskbar = true;
         Show();
         if (WindowState == WindowState.Minimized)
@@ -123,10 +144,14 @@ public sealed partial class MainWindow : Window
 
         Activate();
         _startedHidden = false;
+        _ = _viewModel.RefreshOnActivationAsync();
     }
+
+    public void ShowFromActivation() => ShowFromTray();
 
     private void ExitFromTray()
     {
+        _isQuitting = true;
         Close();
     }
 
@@ -153,7 +178,7 @@ public sealed partial class MainWindow : Window
         ToggleMaximize();
 
     private void OnCloseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
-        Close();
+        HideToTray();
 
     private void ToggleMaximize()
     {

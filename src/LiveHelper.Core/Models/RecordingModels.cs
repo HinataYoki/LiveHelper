@@ -33,7 +33,10 @@ public sealed record RecordingHistoryItem(
     DateTimeOffset StartedAt,
     DateTimeOffset EndedAt,
     long SizeBytes,
-    string Error);
+    string Error)
+{
+    public string Mp4Path { get; init; } = string.Empty;
+}
 
 public sealed record ToolHealth(
     string Name,
